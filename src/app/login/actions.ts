@@ -2,14 +2,14 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { checkPassword, isValidSlug } from "@/lib/auth";
+import { isValidSlug } from "@/lib/auth";
 
 const COOKIE_NAME = "nba_skins_player";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-export async function login(slug: string, password: string) {
-  if (!isValidSlug(slug) || !checkPassword(password)) {
-    return { error: "Profil ou mot de passe incorrect." };
+export async function chooseProfile(slug: string) {
+  if (!isValidSlug(slug)) {
+    return { error: "Profil invalide." };
   }
   const store = await cookies();
   store.set(COOKIE_NAME, slug, {

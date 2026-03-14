@@ -2,16 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-bebas: "Bebas Neue", "Impact", sans-serif;
-  --font-inter: "Inter", system-ui, sans-serif;
-  --court: #166534;
-  --hardwood: #c4a574;
-  --rim: #e11d48;
-}
-
 body {
-  @apply bg-court-950 text-gray-100 antialiased min-h-screen;
+  @apply bg-neutral-50 text-neutral-900 antialiased min-h-screen;
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
@@ -23,7 +15,9 @@ body {
 
 /* Mobile-first tap targets */
 @media (max-width: 768px) {
-  button, [role="button"], a[href] {
+  button,
+  [role="button"],
+  a[href] {
     min-height: 44px;
     min-width: 44px;
   }

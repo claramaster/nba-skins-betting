@@ -70,22 +70,22 @@ export default function MatchsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl text-court-300">
+        <h1 className="text-2xl font-semibold text-neutral-900">
           Matchs {MONTHS[month]} {year}
         </h1>
         <button
           onClick={sync}
           disabled={syncing || loading}
-          className="rounded-lg bg-court-700 px-3 py-1.5 text-sm text-white hover:bg-court-600 disabled:opacity-50"
+          className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 disabled:opacity-50 active:scale-[0.98]"
         >
           {syncing ? "Sync…" : "Rafraîchir"}
         </button>
       </div>
 
       {loading ? (
-        <p className="text-gray-400">Chargement…</p>
+        <p className="text-neutral-500">Chargement…</p>
       ) : sortedGames.length === 0 ? (
-        <p className="text-gray-400">
+        <p className="text-neutral-500">
           Aucun match pour ce mois (ou aucune draft avec équipes draftées).
         </p>
       ) : (
@@ -104,27 +104,27 @@ export default function MatchsPage() {
             return (
               <li
                 key={g.id}
-                className="rounded-xl border border-court-700 bg-court-800/50 p-4"
+                className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card"
               >
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-neutral-500">
                   {formatDate(g.date)} — {g.status ?? "À venir"}
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <span className={winnerId === g.home_team.id ? "font-semibold text-court-300" : "text-gray-300"}>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className={winnerId === g.home_team.id ? "font-semibold text-neutral-900" : "text-neutral-600"}>
                     {g.home_team.abbreviation}
                   </span>
-                  <span className="text-gray-500">
+                  <span className="text-neutral-400">
                     {isFinal ? `${g.home_team_score} - ${g.visitor_team_score}` : "–"}
                   </span>
-                  <span className={winnerId === g.visitor_team.id ? "font-semibold text-court-300" : "text-gray-300"}>
+                  <span className={winnerId === g.visitor_team.id ? "font-semibold text-neutral-900" : "text-neutral-600"}>
                     {g.visitor_team.abbreviation}
                   </span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
                   {homePicks.map((p) => (
                     <span
                       key={p.player_id + p.prediction}
-                      className="rounded bg-court-700/70 px-2 py-0.5 text-gray-300"
+                      className="rounded-xl bg-neutral-100 px-2.5 py-1 text-neutral-600"
                     >
                       {p.player_name} ({p.prediction})
                     </span>
@@ -132,7 +132,7 @@ export default function MatchsPage() {
                   {visitorPicks.map((p) => (
                     <span
                       key={p.player_id + p.prediction}
-                      className="rounded bg-court-700/70 px-2 py-0.5 text-gray-300"
+                      className="rounded-xl bg-neutral-100 px-2.5 py-1 text-neutral-600"
                     >
                       {p.player_name} ({p.prediction})
                     </span>

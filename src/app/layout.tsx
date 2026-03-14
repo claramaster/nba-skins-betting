@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
-
-const bebas = Bebas_Neue({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-bebas",
-});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,11 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${bebas.variable} ${inter.variable}`}>
-      <body className="font-body">
+    <html lang="fr" className={inter.variable}>
+      <body className="font-sans">
         <div className="flex min-h-screen flex-col">
           <Nav />
-          <main className="flex-1 p-4 pb-20">{children}</main>
+          <main className="flex-1 p-4 pb-24 md:p-6">{children}</main>
         </div>
       </body>
     </html>

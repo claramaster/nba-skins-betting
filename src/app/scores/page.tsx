@@ -73,66 +73,66 @@ export default function ScoresPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl text-court-300">
+        <h1 className="text-2xl font-semibold text-neutral-900">
           Scores {MONTHS[month]} {year}
         </h1>
         <div className="flex gap-2">
           <button
             onClick={sync}
             disabled={syncing || loading}
-            className="rounded-lg bg-court-700 px-3 py-1.5 text-sm text-white hover:bg-court-600 disabled:opacity-50"
+            className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 disabled:opacity-50 active:scale-[0.98]"
           >
             {syncing ? "Sync…" : "Rafraîchir"}
           </button>
           <button
             onClick={finalize}
             disabled={finalizing || loading}
-            className="rounded-lg border border-court-600 px-3 py-1.5 text-sm text-court-300 hover:bg-court-800 disabled:opacity-50"
+            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
           >
             {finalizing ? "…" : "Clôturer le mois (6/3/1)"}
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-court-700 bg-court-800/50 p-4">
-        <p className="text-sm text-gray-400">
-          X = nombre de matchs retenus pour l’égalisation : <strong className="text-white">{xMatchCount}</strong>
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
+        <p className="text-sm text-neutral-600">
+          X = nombre de matchs retenus pour l’égalisation : <strong className="text-neutral-900">{xMatchCount}</strong>
         </p>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-neutral-500">
           Seuls les X premiers matchs chronologiques de chaque joueur comptent pour le classement.
         </p>
       </div>
 
       {loading ? (
-        <p className="text-gray-400">Chargement…</p>
+        <p className="text-neutral-500">Chargement…</p>
       ) : sorted.length === 0 ? (
-        <p className="text-gray-400">Aucun score (draft du mois ou matchs manquants).</p>
+        <p className="text-neutral-500">Aucun score (draft du mois ou matchs manquants).</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-court-700">
+          <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-card">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-court-700 bg-court-800 text-gray-400">
-                  <th className="p-3">Rang</th>
-                  <th className="p-3">Joueur</th>
-                  <th className="p-3 text-right">Matchs</th>
-                  <th className="p-3 text-right">Pts (sur X)</th>
+                <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <th className="p-4 font-medium text-neutral-500">Rang</th>
+                  <th className="p-4 font-medium text-neutral-500">Joueur</th>
+                  <th className="p-4 text-right font-medium text-neutral-500">Matchs</th>
+                  <th className="p-4 text-right font-medium text-neutral-500">Pts (sur X)</th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((row, i) => (
-                  <tr key={row.player_id} className="border-b border-court-700/50">
-                    <td className="p-3 font-display text-court-400">{i + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.player_name}</td>
-                    <td className="p-3 text-right text-gray-300">
+                  <tr key={row.player_id} className="border-b border-neutral-100 last:border-0">
+                    <td className="p-4 font-medium text-neutral-400">{i + 1}</td>
+                    <td className="p-4 font-medium text-neutral-900">{row.player_name}</td>
+                    <td className="p-4 text-right text-neutral-600">
                       {row.match_count}
                       {xMatchCount > 0 && row.match_count > xMatchCount && (
-                        <span className="ml-1 text-xs text-gray-500">
+                        <span className="ml-1 text-xs text-neutral-400">
                           (max {xMatchCount})
                         </span>
                       )}
                     </td>
-                    <td className="p-3 text-right font-medium text-court-300">
+                    <td className="p-4 text-right font-semibold text-accent">
                       {row.score_count}
                     </td>
                   </tr>
@@ -140,7 +140,7 @@ export default function ScoresPage() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-neutral-500">
             En fin de mois : 1er → 6 pts saison, 2e → 3 pts, 3e → 1 pt (ex-æquo partagés).
           </p>
         </>

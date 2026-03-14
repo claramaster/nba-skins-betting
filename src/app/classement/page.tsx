@@ -43,7 +43,7 @@ export default function ClassementPage() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-gray-400">Chargement…</p>
+        <p className="text-neutral-500">Chargement…</p>
       </div>
     );
   }
@@ -54,37 +54,37 @@ export default function ClassementPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="font-display text-2xl text-court-300">
+      <h1 className="text-2xl font-semibold text-neutral-900">
         Classement de saison {seasonStartYear}-{seasonStartYear + 1}
       </h1>
 
-      <div className="overflow-x-auto rounded-xl border border-court-700">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-card">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-court-700 bg-court-800 text-gray-400">
-              <th className="p-3">Joueur</th>
+            <tr className="border-b border-neutral-200 bg-neutral-50">
+              <th className="p-4 font-medium text-neutral-500">Joueur</th>
               {months.map((m) => (
-                <th key={`${m.year}-${m.month}`} className="p-2 text-center">
+                <th key={`${m.year}-${m.month}`} className="p-3 text-center font-medium text-neutral-500">
                   {monthLabel(m)}
                 </th>
               ))}
-              <th className="p-3 text-right font-medium text-court-400">Total</th>
+              <th className="p-4 text-right font-semibold text-accent">Total</th>
             </tr>
           </thead>
           <tbody>
             {sortedPlayers.map((pl) => (
-              <tr key={pl.id} className="border-b border-court-700/50">
-                <td className="p-3 font-medium text-white">{pl.name}</td>
+              <tr key={pl.id} className="border-b border-neutral-100 last:border-0">
+                <td className="p-4 font-medium text-neutral-900">{pl.name}</td>
                 {months.map((m) => {
                   const key = `${m.year}-${m.month}`;
                   const pts = pointsByPlayerMonth[pl.id]?.[key] ?? 0;
                   return (
-                    <td key={key} className="p-2 text-center text-gray-300">
+                    <td key={key} className="p-3 text-center text-neutral-600">
                       {pts > 0 ? pts : "—"}
                     </td>
                   );
                 })}
-                <td className="p-3 text-right font-display text-court-300">
+                <td className="p-4 text-right font-semibold text-accent">
                   {totals[pl.id] ?? 0}
                 </td>
               </tr>
@@ -94,7 +94,7 @@ export default function ClassementPage() {
       </div>
 
       <section>
-        <h2 className="font-display text-lg text-court-300 mb-2">
+        <h2 className="mb-3 text-lg font-semibold text-neutral-900">
           Historique des drafts
         </h2>
         <div className="space-y-2">
@@ -109,13 +109,13 @@ export default function ClassementPage() {
                     : { year: d.year, month: d.month }
                 )
               }
-              className="w-full rounded-lg border border-court-700 bg-court-800/50 p-3 text-left hover:bg-court-800"
+              className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left shadow-card transition hover:border-neutral-300 hover:shadow-card-hover active:scale-[0.99]"
             >
-              <span className="font-medium text-white">
+              <span className="font-medium text-neutral-900">
                 {monthLabel({ year: d.year, month: d.month })}
               </span>
               {selectedDraft?.year === d.year && selectedDraft?.month === d.month && (
-                <div className="mt-2 text-xs text-gray-400">
+                <div className="mt-3 space-y-1 text-sm text-neutral-600">
                   {players.map((pl) => {
                     const playerPicks = picks
                       .filter(

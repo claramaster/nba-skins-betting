@@ -150,7 +150,7 @@ export default function DraftPage() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-gray-400">Chargement…</p>
+        <p className="text-neutral-500">Chargement…</p>
       </div>
     );
   }
@@ -161,14 +161,14 @@ export default function DraftPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-display text-2xl text-court-300">
+        <h1 className="text-2xl font-semibold text-neutral-900">
           Draft {draft ? `${MONTHS[draft.month]} ${draft.year}` : "mensuelle"}
         </h1>
         {!draft && (
           <button
             onClick={startDraft}
             disabled={saving}
-            className="rounded-lg bg-court-600 px-4 py-2 font-medium text-white hover:bg-court-500 disabled:opacity-50"
+            className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
           >
             {saving ? "…" : "Lancer la draft"}
           </button>
@@ -176,31 +176,33 @@ export default function DraftPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-900/30 border border-red-700/50 px-4 py-2 text-sm text-red-300">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {draft && (
         <>
-          <div className="rounded-xl border border-court-700 bg-court-800/50 p-4">
-            <p className="text-sm text-gray-400">Mode : {draft.draft_mode === "snake" ? "Serpent (A→D→D→A…)" : "Régulier (A→B→C→D…)"}</p>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
+            <p className="text-sm text-neutral-500">
+              Mode : {draft.draft_mode === "snake" ? "Serpent (A→D→D→A…)" : "Régulier (A→B→C→D…)"}
+            </p>
             {currentTurn && draft.status === "draft" && (
-              <p className="mt-2 font-display text-lg text-court-300">
-                À toi de choisir : <span className="text-white">{currentTurn.label}</span>
+              <p className="mt-2 text-lg font-medium text-neutral-900">
+                À toi de choisir : <span className="text-accent">{currentTurn.label}</span>
               </p>
             )}
             {draft.status === "completed" && (
-              <p className="mt-2 text-court-400">Draft terminée.</p>
+              <p className="mt-2 text-neutral-500">Draft terminée.</p>
             )}
           </div>
 
           {draft.status === "draft" && currentTurn && (
-            <div className="rounded-xl border border-court-700 bg-court-800/50 p-4">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
               {selecting ? (
                 <>
-                  <p className="mb-3 text-sm text-gray-400">
-                    Pari pour <strong className="text-white">{selecting.team.abbreviation}</strong> ({selecting.team.full_name ?? selecting.team.city + " " + selecting.team.name}) :
+                  <p className="mb-3 text-sm text-neutral-500">
+                    Pari pour <strong className="text-neutral-900">{selecting.team.abbreviation}</strong> ({selecting.team.full_name ?? selecting.team.city + " " + selecting.team.name}) :
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -208,7 +210,7 @@ export default function DraftPage() {
                         makePick(currentTurn!.player.id, selecting!.team, "W")
                       }
                       disabled={saving}
-                      className="rounded-lg bg-green-700/60 px-4 py-2 text-white hover:bg-green-600"
+                      className="rounded-xl bg-green-500 px-4 py-2.5 font-medium text-white transition hover:bg-green-600 disabled:opacity-50 active:scale-[0.98]"
                     >
                       W (gagne)
                     </button>
@@ -217,20 +219,20 @@ export default function DraftPage() {
                         makePick(currentTurn!.player.id, selecting!.team, "L")
                       }
                       disabled={saving}
-                      className="rounded-lg bg-red-700/60 px-4 py-2 text-white hover:bg-red-600"
+                      className="rounded-xl bg-red-500 px-4 py-2.5 font-medium text-white transition hover:bg-red-600 disabled:opacity-50 active:scale-[0.98]"
                     >
                       L (perd)
                     </button>
                     <button
                       onClick={() => setSelecting(null)}
-                      className="rounded-lg border border-court-600 px-4 py-2 text-gray-300"
+                      className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-600 transition hover:bg-neutral-50"
                     >
                       Annuler
                     </button>
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-gray-400">Choisis une équipe ci-dessous puis ton pari (W/L).</p>
+                <p className="text-sm text-neutral-500">Choisis une équipe ci-dessous puis ton pari (W/L).</p>
               )}
             </div>
           )}
@@ -241,6 +243,7 @@ export default function DraftPage() {
               const pick = picks.find((p) => p.nba_team_id === team.id);
               const st = standings[team.id];
               const wl = st ? `${st.wins}-${st.losses}` : "—";
+              const isMyTurn = currentTurn && currentTurn.player.slug === mySlug;
 
               return (
                 <button
@@ -250,28 +253,28 @@ export default function DraftPage() {
                     picked ||
                     draft.status === "completed" ||
                     !currentTurn ||
-                    currentTurn.player.slug !== mySlug
+                    !isMyTurn
                   }
                   onClick={() => {
-                    if (picked || !currentTurn) return;
+                    if (picked || !currentTurn || !isMyTurn) return;
                     setSelecting({ team, prediction: "W" });
                   }}
-                  className={`rounded-lg border p-3 text-left transition ${
+                  className={`rounded-2xl border p-3 text-left transition ${
                     picked
-                      ? "border-court-700 bg-court-900/80 opacity-70 cursor-default"
-                      : currentTurn && currentTurn.player.slug === mySlug
-                        ? "border-court-600 bg-court-800 hover:bg-court-700 cursor-pointer"
+                      ? "cursor-default border-neutral-200 bg-neutral-100 opacity-60"
+                      : isMyTurn
+                        ? "border-neutral-300 bg-white shadow-card hover:border-accent hover:shadow-card-hover cursor-pointer active:scale-[0.98]"
                         : currentTurn
-                          ? "border-court-700 bg-court-800/80 cursor-not-allowed opacity-90"
-                          : "border-court-800 bg-court-900/50 cursor-default"
+                          ? "cursor-not-allowed border-neutral-200 bg-neutral-50 opacity-80"
+                          : "cursor-default border-neutral-200 bg-neutral-50"
                   }`}
                 >
-                  <div className="font-semibold text-white">
+                  <div className="font-semibold text-neutral-900">
                     {team.abbreviation ?? team.full_name}
                   </div>
-                  <div className="text-xs text-gray-400">W-L {wl}</div>
+                  <div className="text-xs text-neutral-500">W-L {wl}</div>
                   {pick && (
-                    <div className="mt-1 text-xs text-court-400">
+                    <div className="mt-1 text-xs text-neutral-500">
                       {pick.players?.name} — {pick.prediction}
                     </div>
                   )}
@@ -280,23 +283,23 @@ export default function DraftPage() {
             })}
           </div>
 
-          <div className="rounded-xl border border-court-700 bg-court-800/50 p-4">
-            <h2 className="font-display text-lg text-court-300">Récap — {picks.length}/28</h2>
-            <div className="mt-2 overflow-x-auto">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
+            <h2 className="text-lg font-semibold text-neutral-900">Récap — {picks.length}/28</h2>
+            <div className="mt-3 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-400">
-                    <th className="pb-1 pr-2">Joueur</th>
-                    <th className="pb-1">Équipes (W/L)</th>
+                  <tr className="text-left text-neutral-500">
+                    <th className="pb-2 pr-3">Joueur</th>
+                    <th className="pb-2">Équipes (W/L)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {players.map((pl) => {
                     const playerPicks = picks.filter((p) => p.player_id === pl.id);
                     return (
-                      <tr key={pl.id} className="border-t border-court-700/50">
-                        <td className="py-1.5 pr-2 font-medium text-white">{pl.name}</td>
-                        <td className="py-1.5 text-gray-300">
+                      <tr key={pl.id} className="border-t border-neutral-100">
+                        <td className="py-2 pr-3 font-medium text-neutral-900">{pl.name}</td>
+                        <td className="py-2 text-neutral-600">
                           {playerPicks.length === 0
                             ? "—"
                             : playerPicks
@@ -315,7 +318,7 @@ export default function DraftPage() {
       )}
 
       {!draft && (
-        <p className="text-gray-400">
+        <p className="text-neutral-500">
           Aucune draft en cours pour ce mois. Clique sur « Lancer la draft » pour tirer au sort
           l’ordre et le mode (serpent ou régulier).
         </p>
