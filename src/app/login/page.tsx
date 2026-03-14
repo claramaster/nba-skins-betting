@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { getPlayerSlugs, isValidSlug } from "@/lib/auth";
 
 const COOKIE_NAME = "nba_skins_player";
@@ -18,14 +17,13 @@ const SLUG_LABELS: Record<string, string> = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const slugs = getPlayerSlugs();
 
   function handleChoose(slug: string) {
     if (!isValidSlug(slug)) return;
     setProfileCookie(slug);
-    router.push("/");
-    router.refresh();
+    // Rechargement complet pour que le middleware reçoive bien le cookie
+    window.location.href = "/";
   }
 
   return (
