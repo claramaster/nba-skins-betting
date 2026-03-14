@@ -7,8 +7,9 @@ import { isValidSlug } from "@/lib/auth";
 const COOKIE_NAME = "nba_skins_player";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-export async function chooseProfile(slug: string) {
-  if (!isValidSlug(slug)) {
+export async function chooseProfile(formData: FormData) {
+  const slug = formData.get("slug");
+  if (typeof slug !== "string" || !isValidSlug(slug)) {
     return { error: "Profil invalide." };
   }
   const store = await cookies();

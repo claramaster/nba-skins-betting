@@ -25,7 +25,8 @@ export default function LoginPage() {
       </div>
       <div className="grid w-full grid-cols-2 gap-3">
         {slugs.map((slug) => (
-          <form key={slug} action={chooseProfile.bind(null, slug)}>
+          <form key={slug} action={chooseProfile}>
+            <input type="hidden" name="slug" value={slug} />
             <button
               type="submit"
               className="w-full rounded-2xl border border-neutral-200 bg-white py-4 text-base font-medium text-neutral-900 shadow-sm transition hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.98]"
