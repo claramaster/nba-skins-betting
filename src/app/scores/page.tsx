@@ -65,6 +65,7 @@ export default function ScoresPage() {
 
   useEffect(() => {
     fetchScores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sorted = [...scoreRows].sort((a, b) => b.score_count - a.score_count);
@@ -126,7 +127,7 @@ export default function ScoresPage() {
                     <td className="p-3 text-right text-gray-300">
                       {row.match_count}
                       {xMatchCount > 0 && row.match_count > xMatchCount && (
-                        <span className="ml-1 text-xs text-gray-500}>
+                        <span className="ml-1 text-xs text-gray-500">
                           (max {xMatchCount})
                         </span>
                       )}

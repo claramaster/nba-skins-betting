@@ -60,7 +60,15 @@ export async function GET(request: NextRequest) {
     picksByTeam[p.nba_team_id] = arr;
   }
 
-  const players = [...new Map((picks ?? []).map((p) => [p.player_id, (p.players as { id: string; name: string; slug: string })])).values()];
+  const playerMap = new Map<string, { id: string; name: string; slug: string }>();
+  for (const p of picks ?? []) {
+    const playerData = p.players as unknown;
+    if (playerData && typeof playerData === 'object' && !Array.isArray(playerData)) {
+      const pd = playerData as { id: string; name: string; slug: string };
+      playerMap.set(p.player_id, pd);
+    }
+  }
+  const players = Array.from(playerMap.values());
 
   return NextResponse.json({
     games: nbaGames,

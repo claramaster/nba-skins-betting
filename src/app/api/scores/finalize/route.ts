@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   }
 
   const sorted = [...scoreRows].sort((a, b) => b.score_count - a.score_count);
-  const rankToScore: Record<number, number> = {};
+  const rankToScore: Record<string, number> = {};
   let rank = 1;
   let i = 0;
   while (i < sorted.length) {

@@ -14,14 +14,15 @@ export async function GET(request: NextRequest) {
   const y = year ? parseInt(year, 10) : now.getFullYear();
   const m = month ? parseInt(month, 10) : now.getMonth() + 1;
 
-  const [{ data: players }, { data: draft }, { data: picks }] = await Promise.all([
+  const [{ data: players }, { data: draft }] = await Promise.all([
     supabase.from("players").select("id, slug, name").order("slug"),
     supabase.from("drafts").select("*").eq("year", y).eq("month", m).maybeSingle(),
-    supabase
-      .from("draft_picks")
-      .select("*, players(name, slug)")
-      .in("draft_id", draft?.id ? [draft.id] : []),
   ]);
+
+  const { data: picks } = await supabase
+    .from("draft_picks")
+    .select("*, players(name, slug)")
+    .in("draft_id", draft?.id ? [draft.id] : []);
 
   let teams: Awaited<ReturnType<typeof getNbaTeams>> = [];
   let standings: Awaited<ReturnType<typeof getNbaStandings>> = [];

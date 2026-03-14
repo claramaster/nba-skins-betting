@@ -72,7 +72,7 @@ export async function getNbaGames(params: {
   end_date?: string;
   per_page?: number;
 }): Promise<NBAGame[]> {
-  const q: Record<string, string | number | string[]> = {};
+  const q: Record<string, string | number | string[] | number[]> = {};
   if (params["dates[]"]?.length) q["dates[]"] = params["dates[]"];
   if (params["team_ids[]"]?.length) q["team_ids[]"] = params["team_ids[]"];
   if (params.start_date) q.start_date = params.start_date;
