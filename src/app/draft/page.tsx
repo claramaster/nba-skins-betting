@@ -95,14 +95,20 @@ export default function DraftPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
+      let data: { error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError("Réponse serveur invalide");
+        return;
+      }
       if (!res.ok) {
-        setError(data.error ?? "Erreur");
+        setError(data.error ?? `Erreur ${res.status}`);
         return;
       }
       await fetchDraft();
-    } catch {
-      setError("Erreur");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setSaving(false);
     }
@@ -158,6 +164,7 @@ export default function DraftPage() {
         </h1>
         {!draft && (
           <button
+            type="button"
             onClick={startDraft}
             disabled={saving}
             className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
