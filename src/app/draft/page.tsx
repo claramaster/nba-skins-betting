@@ -64,14 +64,6 @@ export default function DraftPage() {
   const [error, setError] = useState("");
   const [selecting, setSelecting] = useState<{ team: NBATeam; prediction: "W" | "L" } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [mySlug, setMySlug] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/me")
-      .then((r) => r.json())
-      .then((d) => setMySlug(d.slug ?? null))
-      .catch(() => setMySlug(null));
-  }, []);
 
   const fetchDraft = useCallback(async () => {
     setError("");
@@ -243,30 +235,23 @@ export default function DraftPage() {
               const pick = picks.find((p) => p.nba_team_id === team.id);
               const st = standings[team.id];
               const wl = st ? `${st.wins}-${st.losses}` : "—";
-              const isMyTurn = currentTurn && currentTurn.player.slug === mySlug;
+              const canPick = currentTurn && !picked && draft.status === "draft";
 
               return (
                 <button
                   key={team.id}
                   type="button"
-                  disabled={
-                    picked ||
-                    draft.status === "completed" ||
-                    !currentTurn ||
-                    !isMyTurn
-                  }
+                  disabled={picked || draft.status === "completed" || !currentTurn}
                   onClick={() => {
-                    if (picked || !currentTurn || !isMyTurn) return;
+                    if (!canPick) return;
                     setSelecting({ team, prediction: "W" });
                   }}
                   className={`rounded-2xl border p-3 text-left transition ${
                     picked
                       ? "cursor-default border-neutral-200 bg-neutral-100 opacity-60"
-                      : isMyTurn
+                      : canPick
                         ? "border-neutral-300 bg-white shadow-card hover:border-accent hover:shadow-card-hover cursor-pointer active:scale-[0.98]"
-                        : currentTurn
-                          ? "cursor-not-allowed border-neutral-200 bg-neutral-50 opacity-80"
-                          : "cursor-default border-neutral-200 bg-neutral-50"
+                        : "cursor-default border-neutral-200 bg-neutral-50"
                   }`}
                 >
                   <div className="font-semibold text-neutral-900">

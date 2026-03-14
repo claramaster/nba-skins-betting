@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-
-const COOKIE_NAME = "nba_skins_player";
+import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/", label: "Accueil" },
@@ -13,20 +11,8 @@ const links = [
   { href: "/classement", label: "Saison" },
 ];
 
-function clearProfileCookie() {
-  document.cookie = `${COOKIE_NAME}=; path=/; max-age=0`;
-}
-
 export function Nav() {
   const pathname = usePathname();
-  const router = useRouter();
-  if (pathname === "/login") return null;
-
-  function handleLogout() {
-    clearProfileCookie();
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <nav className="sticky top-0 z-10 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl">
@@ -51,13 +37,6 @@ export function Nav() {
               {label}
             </Link>
           ))}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-xl px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-          >
-            Changer de profil
-          </button>
         </div>
       </div>
     </nav>
