@@ -99,7 +99,12 @@ export default function DraftPage() {
       try {
         data = await res.json();
       } catch {
-        setError("Réponse serveur invalide");
+        const text = await res.text().catch(() => "");
+        setError(
+          text.includes("<!") || text.includes("<!DOCTYPE")
+            ? "Le serveur a renvoyé une page d’erreur. Vérifie sur Bolt que les variables Supabase (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY) sont bien configurées."
+            : "Réponse serveur invalide. Vérifie la config Supabase sur Bolt."
+        );
         return;
       }
       if (!res.ok) {
@@ -233,6 +238,12 @@ export default function DraftPage() {
               ) : (
                 <p className="text-sm text-neutral-500">Choisis une équipe ci-dessous puis ton pari (W/L).</p>
               )}
+            </div>
+          )}
+
+          {teams.length === 0 && draft.status === "draft" && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Les équipes NBA n’ont pas pu être chargées. Vérifie que la variable <code className="rounded bg-amber-100 px-1">BALLDONTLIE_API_KEY</code> est définie (Bolt / .env) et que l’API répond.
             </div>
           )}
 

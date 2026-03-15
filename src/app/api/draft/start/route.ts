@@ -13,61 +13,90 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const year = body.year ?? new Date().getFullYear();
-  const month = body.month ?? new Date().getMonth() + 1;
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      return NextResponse.json(
+        { error: "Base de données non configurée (Supabase). Ajoute les variables d’environnement sur Bolt." },
+        { status: 503 }
+      );
+    }
 
-  const { data: existing } = await supabase
-    .from("drafts")
-    .select("id")
-    .eq("year", year)
-    .eq("month", month)
-    .maybeSingle();
+    const body = await request.json().catch(() => ({}));
+    const year = body.year ?? new Date().getFullYear();
+    const month = body.month ?? new Date().getMonth() + 1;
 
-  if (existing) {
+    const { data: existing, error: errExisting } = await supabase
+      .from("drafts")
+      .select("id")
+      .eq("year", year)
+      .eq("month", month)
+      .maybeSingle();
+
+    if (errExisting) {
+      return NextResponse.json(
+        { error: `Base de données : ${errExisting.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "Une draft existe déjà pour ce mois." },
+        { status: 400 }
+      );
+    }
+
+    const { data: players, error: errPlayers } = await supabase
+      .from("players")
+      .select("id")
+      .order("slug");
+
+    if (errPlayers) {
+      return NextResponse.json(
+        { error: `Base de données : ${errPlayers.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!players || players.length !== 4) {
+      return NextResponse.json(
+        { error: "Il faut exactement 4 joueurs (exécute le schéma SQL Supabase)." },
+        { status: 400 }
+      );
+    }
+
+    const indices = [0, 1, 2, 3];
+    const draftOrder = shuffle(indices);
+    const draftMode = Math.random() < 0.5 ? "snake" : "regular";
+
+    const { data: draft, error } = await supabase
+      .from("drafts")
+      .insert({
+        year: Number(year),
+        month: Number(month),
+        draft_order: draftOrder,
+        draft_mode: draftMode,
+        status: "draft",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: `Création draft : ${error.message}` }, { status: 500 });
+    }
+
+    const playerOrder = draftOrder.map((i) => players[i]);
+    return NextResponse.json({
+      draft,
+      order: draftOrder,
+      playerIds: playerOrder.map((p) => p.id),
+      draftMode,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erreur inattendue";
     return NextResponse.json(
-      { error: "Une draft existe déjà pour ce mois." },
-      { status: 400 }
+      { error: message },
+      { status: 500 }
     );
   }
-
-  const { data: players } = await supabase
-    .from("players")
-    .select("id")
-    .order("slug");
-
-  if (!players || players.length !== 4) {
-    return NextResponse.json(
-      { error: "Il faut exactement 4 joueurs." },
-      { status: 400 }
-    );
-  }
-
-  const indices = [0, 1, 2, 3];
-  const draftOrder = shuffle(indices);
-  const draftMode = Math.random() < 0.5 ? "snake" : "regular";
-
-  const { data: draft, error } = await supabase
-    .from("drafts")
-    .insert({
-      year: Number(year),
-      month: Number(month),
-      draft_order: draftOrder,
-      draft_mode: draftMode,
-      status: "draft",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const playerOrder = draftOrder.map((i) => players[i]);
-  return NextResponse.json({
-    draft,
-    order: draftOrder,
-    playerIds: playerOrder.map((p) => p.id),
-    draftMode,
-  });
 }

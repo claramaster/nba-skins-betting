@@ -26,14 +26,14 @@ export async function GET(request: NextRequest) {
 
   let teams: Awaited<ReturnType<typeof getNbaTeams>> = [];
   let standings: Awaited<ReturnType<typeof getNbaStandings>> = [];
-  try {
-    [teams, standings] = await Promise.all([
-      getNbaTeams(),
-      getNbaStandings(now.getFullYear()),
-    ]);
-  } catch (e) {
-    console.error("balldontlie", e);
-  }
+  const [teamsResult, standingsResult] = await Promise.allSettled([
+    getNbaTeams(),
+    getNbaStandings(now.getFullYear()),
+  ]);
+  if (teamsResult.status === "fulfilled") teams = teamsResult.value;
+  else console.error("getNbaTeams", teamsResult.reason);
+  if (standingsResult.status === "fulfilled") standings = standingsResult.value;
+  else console.error("getNbaStandings", standingsResult.reason);
 
   const standingsByTeamId = Object.fromEntries(
     standings.map((s) => [s.team.id, { wins: s.wins ?? 0, losses: s.losses ?? 0 }])
