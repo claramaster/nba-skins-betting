@@ -59,6 +59,7 @@ export default function DraftPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [teams, setTeams] = useState<NBATeam[]>([]);
+  const [teamsSource, setTeamsSource] = useState<"api" | "static" | null>(null);
   const [standings, setStandings] = useState<Record<number, { wins: number; losses: number }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,6 +75,7 @@ export default function DraftPage() {
       setDraft(data.draft);
       setPicks(data.picks ?? []);
       setTeams(data.teams ?? []);
+      setTeamsSource(data.teamsSource ?? null);
       setStandings(data.standings ?? {});
     } catch (e) {
       setError("Erreur chargement.");
@@ -243,10 +245,17 @@ export default function DraftPage() {
 
           {teams.length === 0 && draft.status === "draft" && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Les équipes NBA n’ont pas pu être chargées. Vérifie que la variable <code className="rounded bg-amber-100 px-1">BALLDONTLIE_API_KEY</code> est définie (Bolt / .env) et que l’API répond.
+              Les équipes NBA n’ont pas pu être chargées (liste statique non disponible). Optionnel : crée un compte gratuit sur{" "}
+              <a href="https://app.balldontlie.io" target="_blank" rel="noopener noreferrer" className="underline">app.balldontlie.io</a>{" "}
+              et définis <code className="rounded bg-amber-100 px-1">BALLDONTLIE_API_KEY</code> pour utiliser l’API (gratuit : 30 req/min, équipes + matchs).
             </div>
           )}
 
+          {teamsSource === "static" && (
+            <p className="text-xs text-neutral-400">
+              Équipes : liste statique (sans API). Les scores seront calculés plus tard (fichier ou API).
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
             {teams.map((team) => {
               const picked = draftedIds.has(team.id);

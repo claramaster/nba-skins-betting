@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { getNbaTeams, getNbaStandings } from "@/lib/balldontlie";
+import { NBA_TEAMS_STATIC } from "@/lib/nba-teams-static";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,12 @@ export async function GET(request: NextRequest) {
   if (standingsResult.status === "fulfilled") standings = standingsResult.value;
   else console.error("getNbaStandings", standingsResult.reason);
 
+  let teamsSource: "api" | "static" = "api";
+  if (teams.length === 0) {
+    teams = NBA_TEAMS_STATIC as Awaited<ReturnType<typeof getNbaTeams>>;
+    teamsSource = "static";
+  }
+
   const standingsByTeamId = Object.fromEntries(
     standings.map((s) => [s.team.id, { wins: s.wins ?? 0, losses: s.losses ?? 0 }])
   );
@@ -44,6 +51,7 @@ export async function GET(request: NextRequest) {
     draft: draft ?? null,
     picks: picks ?? [],
     teams,
+    teamsSource,
     standings: standingsByTeamId,
   });
 }
