@@ -70,6 +70,8 @@ export default function DraftPage() {
   const [nextMonthDraft, setNextMonthDraft] = useState<Draft | null | "loading">(null);
   const [nextMonthYear, setNextMonthYear] = useState<number | null>(null);
   const [nextMonthMonth, setNextMonthMonth] = useState<number | null>(null);
+  const [finalized, setFinalized] = useState(false);
+  const [orderChoice, setOrderChoice] = useState<number[] | null>(null); // [idxA, idxB, idxC, idxD] indices in players order (slug)
 
   const fetchDraft = useCallback(async (y?: number, m?: number) => {
     if (y != null && m != null) {
@@ -95,6 +97,7 @@ export default function DraftPage() {
       setTeams(data.teams ?? []);
       setTeamsSource(data.teamsSource ?? null);
       setStandings(data.standings ?? {});
+      setFinalized(data.finalized ?? false);
     } catch (e) {
       setError("Erreur chargement.");
     } finally {
@@ -112,6 +115,7 @@ export default function DraftPage() {
       setTeams(data.teams ?? []);
       setTeamsSource(data.teamsSource ?? null);
       setStandings(data.standings ?? {});
+      setFinalized(data.finalized ?? false);
       setNextMonthDraft(null);
       setNextMonthYear(null);
       setNextMonthMonth(null);
@@ -125,7 +129,7 @@ export default function DraftPage() {
   }, [fetchDraft]);
 
   useEffect(() => {
-    if (draft?.status === "completed") {
+    if (draft?.status === "completed" && finalized) {
       const nextM = draft.month === 12 ? 1 : draft.month + 1;
       const nextY = draft.month === 12 ? draft.year + 1 : draft.year;
       setNextMonthDraft("loading");
@@ -135,16 +139,42 @@ export default function DraftPage() {
       setNextMonthYear(null);
       setNextMonthMonth(null);
     }
-  }, [draft?.id, draft?.status, draft?.month, draft?.year, fetchDraft]);
+  }, [draft?.id, draft?.status, draft?.month, draft?.year, finalized, fetchDraft]);
 
-  const startDraft = async (mode?: "regular" | "snake", year?: number, month?: number) => {
+  const cancelDraft = async () => {
+    if (!draft || !window.confirm("Annuler la draft en cours ? Les choix seront supprimés.")) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/draft/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId: draft.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Erreur");
+        return;
+      }
+      setError("");
+      await fetchDraft();
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startDraft = async (mode?: "regular" | "snake", year?: number, month?: number, draftOrder?: number[]) => {
     setError("");
     setSaving(true);
     try {
-      const body: { draft_mode?: "regular" | "snake"; year?: number; month?: number } = mode ? { draft_mode: mode } : {};
+      const body: { draft_mode?: "regular" | "snake"; year?: number; month?: number; draft_order?: number[] } = mode ? { draft_mode: mode } : {};
       if (year != null && month != null) {
         body.year = year;
         body.month = month;
+      }
+      if (draftOrder != null && draftOrder.length === 4) {
+        body.draft_order = draftOrder;
       }
       const res = await fetch("/api/draft/start", {
         method: "POST",
@@ -221,10 +251,19 @@ export default function DraftPage() {
   const draftedIds = new Set(picks.map((p) => p.nba_team_id));
   const currentTurn = draft ? getCurrentTurn(draft, players, picks.length) : null;
 
-  const showLaunchForNextMonth = draft?.status === "completed" && nextMonthDraft === null && nextMonthYear != null && nextMonthMonth != null;
+  const showLaunchForNextMonth = draft?.status === "completed" && finalized && nextMonthDraft === null && nextMonthYear != null && nextMonthMonth != null;
   const showLaunchUI = !draft || showLaunchForNextMonth;
   const launchYear = showLaunchForNextMonth ? nextMonthYear! : new Date().getFullYear();
   const launchMonth = showLaunchForNextMonth ? nextMonthMonth! : new Date().getMonth() + 1;
+
+  const orderChoiceValid = orderChoice != null && orderChoice.length === 4 && orderChoice.every((i) => i >= 0 && i <= 3) && new Set(orderChoice).size === 4;
+  const setOrderAt = (pos: number, playerIndex: number) => {
+    setOrderChoice((prev) => {
+      const next = prev ? [...prev] : [-1, -1, -1, -1];
+      next[pos] = playerIndex;
+      return next;
+    });
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -257,26 +296,41 @@ export default function DraftPage() {
                 </button>
               </>
             ) : (
-              <>
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-neutral-500">
-                  Mode : {draftModeChoice === "snake" ? "Serpent" : "Classique"}
+                  Ordre A→B→C→D — {draftModeChoice === "snake" ? "Serpent" : "Classique"}
                 </span>
+                {["A", "B", "C", "D"].map((letter, pos) => (
+                  <label key={letter} className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-neutral-600">{letter}</span>
+                    <select
+                      className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-neutral-900"
+                      value={orderChoice?.[pos] != null && orderChoice[pos]! >= 0 ? orderChoice[pos]! : ""}
+                      onChange={(e) => setOrderAt(pos, parseInt(e.target.value, 10))}
+                    >
+                      <option value="">—</option>
+                      {players.map((pl, idx) => (
+                        <option key={pl.id} value={idx}>{pl.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
                 <button
                   type="button"
-                  onClick={() => startDraft(draftModeChoice, showLaunchForNextMonth ? launchYear : undefined, showLaunchForNextMonth ? launchMonth : undefined)}
-                  disabled={saving}
+                  onClick={() => startDraft(draftModeChoice, showLaunchForNextMonth ? launchYear : undefined, showLaunchForNextMonth ? launchMonth : undefined, orderChoiceValid ? orderChoice : undefined)}
+                  disabled={saving || !orderChoiceValid}
                   className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
                 >
                   {saving ? "…" : "Lancer la draft"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDraftModeChoice(null)}
+                  onClick={() => { setDraftModeChoice(null); setOrderChoice(null); }}
                   className="rounded-2xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50"
                 >
                   Changer
                 </button>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -368,10 +422,17 @@ export default function DraftPage() {
             </div>
           )}
 
-          {teamsSource === "static" && (
-            <p className="text-xs text-neutral-400">
-              Équipes : liste statique (sans API). Les scores seront calculés plus tard (fichier ou API).
-            </p>
+          {draft.status === "draft" && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={cancelDraft}
+                disabled={saving}
+                className="rounded-2xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+              >
+                Annuler la draft
+              </button>
+            </div>
           )}
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
             {teams

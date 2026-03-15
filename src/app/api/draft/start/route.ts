@@ -65,11 +65,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const indices = [0, 1, 2, 3];
-    const draftOrder = shuffle(indices);
     const draftMode = (body.draft_mode === "snake" || body.draft_mode === "regular")
       ? body.draft_mode
       : Math.random() < 0.5 ? "snake" : "regular";
+
+    let draftOrder: number[];
+    if (Array.isArray(body.draft_order) && body.draft_order.length === 4) {
+      const order = body.draft_order.map(Number);
+      const valid = [...new Set(order)].sort().join("") === "0123";
+      draftOrder = valid ? order : shuffle([0, 1, 2, 3]);
+    } else {
+      draftOrder = shuffle([0, 1, 2, 3]);
+    }
 
     const { data: draft, error } = await supabase
       .from("drafts")

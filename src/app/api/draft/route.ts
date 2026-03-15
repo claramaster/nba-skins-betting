@@ -20,10 +20,12 @@ export async function GET(request: NextRequest) {
     supabase.from("drafts").select("*").eq("year", y).eq("month", m).maybeSingle(),
   ]);
 
-  const { data: picks } = await supabase
-    .from("draft_picks")
-    .select("*, players(name, slug)")
-    .in("draft_id", draft?.id ? [draft.id] : []);
+  const [{ data: picks }, { data: monthlyScoresForDraft }] = await Promise.all([
+    supabase.from("draft_picks").select("*, players(name, slug)").in("draft_id", draft?.id ? [draft.id] : []),
+    draft?.id ? supabase.from("monthly_scores").select("id").eq("draft_id", draft.id) : Promise.resolve({ data: [] }),
+  ]);
+
+  const finalized = (monthlyScoresForDraft ?? []).length > 0;
 
   let teams: Awaited<ReturnType<typeof getNbaTeams>> = [];
   let standings: Awaited<ReturnType<typeof getNbaStandings>> = [];
@@ -53,5 +55,6 @@ export async function GET(request: NextRequest) {
     teams,
     teamsSource,
     standings: standingsByTeamId,
+    finalized: draft?.id ? finalized : false,
   });
 }

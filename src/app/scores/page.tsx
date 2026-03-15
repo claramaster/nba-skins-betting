@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+type TeamScore = { nba_team_abbreviation: string; prediction: string; points: number };
 type ScoreRow = {
   player_id: string;
   player_name: string;
@@ -10,6 +11,7 @@ type ScoreRow = {
   raw_correct: number;
   match_count: number;
   score_count: number;
+  teamScores?: TeamScore[];
 };
 
 const MONTHS = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
@@ -136,15 +138,6 @@ export default function ScoresPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
-        <p className="text-sm text-neutral-600">
-          X = nombre de matchs retenus pour l’égalisation : <strong className="text-neutral-900">{xMatchCount}</strong>
-        </p>
-        <p className="mt-1 text-xs text-neutral-500">
-          Seuls les X premiers matchs chronologiques de chaque joueur comptent pour le classement.
-        </p>
-      </div>
-
       {loading ? (
         <p className="text-neutral-500">Chargement…</p>
       ) : sorted.length === 0 ? (
@@ -157,8 +150,8 @@ export default function ScoresPage() {
                 <tr className="border-b border-neutral-200 bg-neutral-50">
                   <th className="p-4 font-medium text-neutral-500">Rang</th>
                   <th className="p-4 font-medium text-neutral-500">Joueur</th>
-                  <th className="p-4 text-right font-medium text-neutral-500">Matchs</th>
-                  <th className="p-4 text-right font-medium text-neutral-500">Pts (sur X)</th>
+                  <th className="p-4 text-right font-medium text-neutral-500">Total</th>
+                  <th className="p-4 font-medium text-neutral-500">Détail par équipe</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,25 +159,27 @@ export default function ScoresPage() {
                   <tr key={row.player_id} className="border-b border-neutral-100 last:border-0">
                     <td className="p-4 font-medium text-neutral-400">{i + 1}</td>
                     <td className="p-4 font-medium text-neutral-900">{row.player_name}</td>
-                    <td className="p-4 text-right text-neutral-600">
-                      {row.match_count}
-                      {xMatchCount > 0 && row.match_count > xMatchCount && (
-                        <span className="ml-1 text-xs text-neutral-400">
-                          (max {xMatchCount})
-                        </span>
-                      )}
-                    </td>
                     <td className="p-4 text-right font-semibold text-accent">
                       {row.score_count}
+                    </td>
+                    <td className="p-4 text-neutral-600">
+                      {row.teamScores?.length ? (
+                        <span className="flex flex-wrap gap-x-2 gap-y-0.5">
+                          {row.teamScores.map((ts, k) => (
+                            <span key={k} className="text-xs">
+                              {ts.nba_team_abbreviation} ({ts.prediction}): {ts.points}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-neutral-500">
-            En fin de mois : 1er → 6 pts saison, 2e → 3 pts, 3e → 1 pt (ex-æquo partagés).
-          </p>
         </>
       )}
     </div>

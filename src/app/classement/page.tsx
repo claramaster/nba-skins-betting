@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 type Player = { id: string; name: string; slug: string };
 type MonthKey = { year: number; month: number };
 
-const MONTHS = ["", "Nov", "Déc", "Jan", "Fév", "Mar", "Avr"];
+const MONTHS = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
 export default function ClassementPage() {
   const [seasonStartYear, setSeasonStartYear] = useState(0);
@@ -38,7 +38,7 @@ export default function ClassementPage() {
   }, []);
 
   const monthLabel = (m: MonthKey) =>
-    `${MONTHS[m.month] ?? m.month} ${m.year}`;
+    `${MONTHS[m.month] ?? String(m.month)} ${m.year}`;
 
   if (loading) {
     return (
