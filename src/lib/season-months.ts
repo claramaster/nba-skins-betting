@@ -35,3 +35,11 @@ export function getMonthBySlug(slug: string): SeasonMonthConfig | null {
 export function isSeasonMonthSlug(slug: string): slug is MonthSlug {
   return slugToConfig.has(slug as MonthSlug);
 }
+
+/** Plage de dates des matchs pour ce mois (calendrier : 1er au dernier jour du mois). */
+export function getMonthDateRange(m: SeasonMonthConfig): { from: string; to: string } {
+  const from = `${m.year}-${String(m.month).padStart(2, "0")}-01`;
+  const lastDay = new Date(m.year, m.month, 0).getDate();
+  const to = `${m.year}-${String(m.month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
+}

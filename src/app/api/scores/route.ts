@@ -46,9 +46,6 @@ export async function GET(request: NextRequest) {
     players: { id: string; name: string; slug: string };
   };
   const pickList = (picks ?? []) as PickRow[];
-  const resultsByGame = new Map(
-    (gameResults ?? []).map((r) => [r.nba_game_id, r])
-  );
 
   const matchCountByPlayer: Record<string, number> = {};
   const correctByPlayer: Record<string, number> = {};
@@ -64,7 +61,6 @@ export async function GET(request: NextRequest) {
   }
 
   const gamesWithWinner = (gameResults ?? []).filter((g) => g.winner_team_id != null);
-  const gameDatesOrdered = [...new Set(gamesWithWinner.map((g) => g.game_date))].sort();
 
   for (const g of gamesWithWinner) {
     const winnerId = g.winner_team_id!;
@@ -88,14 +84,6 @@ export async function GET(request: NextRequest) {
   }
 
   const finalized = (monthlyScores ?? []).length > 0;
-  const counts = Object.values(matchCountByPlayer).filter((c) => c > 0);
-  const xMatchCount = finalized && counts.length > 0 ? Math.min(...counts) : 0;
-
-  const gamesSorted = [...gamesWithWinner].sort(
-    (a, b) =>
-      new Date(a.game_date).getTime() - new Date(b.game_date).getTime() ||
-      a.nba_game_id - b.nba_game_id
-  );
 
   type PickWithAbbr = PickRow & { nba_team_abbreviation?: string | null };
   const picksWithAbbr = pickList as PickWithAbbr[];
@@ -106,13 +94,7 @@ export async function GET(request: NextRequest) {
     for (const pick of playerPicks) {
       pointsByPick.set(`${pick.nba_team_id}-${pick.prediction}`, 0);
     }
-
-    let correct = 0;
-    let played = 0;
-    const useCap = finalized && xMatchCount > 0;
-
-    for (const g of gamesSorted) {
-      if (useCap && played >= xMatchCount) break;
+    for (const g of gamesWithWinner) {
       const teamIds = playerTeamIds[pl.id];
       if (!teamIds) continue;
       const hasHome = teamIds.has(g.home_team_id);
@@ -123,11 +105,9 @@ export async function GET(request: NextRequest) {
         (p) => p.player_id === pl.id && p.nba_team_id === ownedTeamId
       );
       if (!pick) continue;
-      played++;
       const won = g.winner_team_id === ownedTeamId;
       const isCorrect = (pick.prediction === "W" && won) || (pick.prediction === "L" && !won);
       if (isCorrect) {
-        correct++;
         const key = `${pick.nba_team_id}-${pick.prediction}`;
         pointsByPick.set(key, (pointsByPick.get(key) ?? 0) + 1);
       }
@@ -139,13 +119,14 @@ export async function GET(request: NextRequest) {
       points: pointsByPick.get(`${p.nba_team_id}-${p.prediction}`) ?? 0,
     }));
 
+    const totalCorrect = correctByPlayer[pl.id] ?? 0;
     return {
       player_id: pl.id,
       player_name: pl.name,
       slug: pl.slug,
-      raw_correct: correctByPlayer[pl.id] ?? 0,
+      raw_correct: totalCorrect,
       match_count: matchCountByPlayer[pl.id] ?? 0,
-      score_count: correct,
+      score_count: totalCorrect,
       teamScores,
     };
   });
@@ -153,7 +134,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     monthlyScores: monthlyScores ?? [],
     scoreRows,
-    xMatchCount,
+    xMatchCount: 0,
     picks: pickList,
     players,
     draftId: draft.id,

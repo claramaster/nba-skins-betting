@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { nbaTeamLogoUrl } from "@/lib/nba-team-logo";
-import { getMonthBySlug } from "@/lib/season-months";
+import { getMonthBySlug, getMonthDateRange } from "@/lib/season-months";
 
 type Player = { id: string; slug: string; name: string };
 type Draft = {
@@ -261,7 +261,8 @@ export default function MoisPage() {
   /** Pour le select d’ordre : indices déjà choisis aux autres positions (pour exclure des options). */
   const chosenIndicesExcept = (pos: number) =>
     (orderChoice ?? []).filter((_, p) => p !== pos).filter((i) => i >= 0);
-  const scoreByPlayerId = new Map(scoreRows.map((r) => [r.player_id, r.score_count]));
+  // Total affiché = nombre réel de bons paris (sans plafond), pour correspondre aux points par équipe
+  const scoreByPlayerId = new Map(scoreRows.map((r) => [r.player_id, r.raw_correct]));
   const teamScoresByPlayerId = new Map(
     scoreRows.map((r) => [r.player_id, r.teamScores ?? []])
   );
@@ -282,9 +283,14 @@ export default function MoisPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold text-neutral-900">
-          {fullName}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">
+            {fullName}
+          </h1>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            Matchs du {getMonthDateRange(monthConfig).from} au {getMonthDateRange(monthConfig).to}
+          </p>
+        </div>
         {draftCompleted && (
           <button
             type="button"
