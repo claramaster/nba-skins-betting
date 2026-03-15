@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SEASON_MONTHS } from "@/lib/season-months";
 
 const links = [
   { href: "/", label: "Accueil" },
-  { href: "/draft", label: "Draft" },
-  { href: "/scores", label: "Scores" },
+  ...SEASON_MONTHS.map((m) => ({ href: `/mois/${m.slug}`, label: m.navLabel })),
 ];
 
 export function Nav() {
@@ -22,19 +22,22 @@ export function Nav() {
           NBA Skins
         </Link>
         <div className="flex items-center gap-1">
-          {links.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                pathname === href
-                  ? "bg-neutral-100 text-neutral-900"
-                  : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
+          {links.map(({ href, label }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  active
+                    ? "bg-neutral-100 text-neutral-900"
+                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </nav>

@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { SEASON_MONTHS } from "@/lib/season-months";
 
 type Player = { id: string; name: string; slug: string };
 type MonthKey = { year: number; month: number };
-
-const MONTH_LABELS: Record<number, string> = {
-  11: "November",
-  12: "December",
-  1: "January",
-  2: "February",
-  3: "March",
-};
 
 const DISPLAY_ORDER = ["carlito", "papa", "vincent", "tonio"];
 
@@ -21,9 +13,8 @@ const STATIC_SKIN_POINTS: Record<number, number[]> = {
   11: [6, 1, 3, 0],   // novembre
   12: [0, 6, 6, 1],   // décembre
   1: [0, 1, 6, 6],    // janvier
-  2: [6, 3, 1, 1],    // février
+  2: [6, 3, 1, 1],   // février
 };
-const SKIN_MONTHS: number[] = [11, 12, 1, 2, 3];
 
 export default function HomePage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -59,25 +50,18 @@ export default function HomePage() {
     });
   }
 
-  const skinRows = SKIN_MONTHS.map((monthNum) => ({
-    month: monthNum,
-    label: `Skin ${MONTH_LABELS[monthNum] ?? monthNum}`,
-    staticPoints: STATIC_SKIN_POINTS[monthNum],
+  const skinRows = SEASON_MONTHS.map((m) => ({
+    year: m.year,
+    month: m.month,
+    label: `Skins - ${m.fullName}`,
+    staticPoints: STATIC_SKIN_POINTS[m.month],
   }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-neutral-900">
-          Récapitulatif des points
-        </h1>
-        <Link
-          href="/scores"
-          className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50"
-        >
-          Scores du mois
-        </Link>
-      </div>
+      <h1 className="text-2xl font-semibold text-neutral-900">
+        Récapitulatif des points
+      </h1>
 
       {loading ? (
         <p className="text-neutral-500">Chargement…</p>
@@ -104,14 +88,12 @@ export default function HomePage() {
                 ))}
               </tr>
               {skinRows.map((row) => (
-                <tr key={row.month} className="border-b border-neutral-100 last:border-0">
+                <tr key={`${row.year}-${row.month}`} className="border-b border-neutral-100 last:border-0">
                   <td className="p-4 font-medium text-neutral-900">{row.label}</td>
                   {playersOrdered.map((p, i) => {
                     const staticVal = row.staticPoints?.[i];
-                    const apiKey = months.find((m) => m.month === row.month)
-                      ? `${months.find((m) => m.month === row.month)!.year}-${row.month}`
-                      : null;
-                    const apiVal = apiKey ? pointsByPlayerMonth[p.id]?.[apiKey] : undefined;
+                    const apiKey = `${row.year}-${row.month}`;
+                    const apiVal = pointsByPlayerMonth[p.id]?.[apiKey];
                     const pts = staticVal != null ? staticVal : apiVal;
                     return (
                       <td key={p.id} className="p-4 text-center font-semibold text-accent">
