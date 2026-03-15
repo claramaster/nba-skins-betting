@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { nbaTeamLogoUrl } from "@/lib/nba-team-logo";
 
 type Player = { id: string; slug: string; name: string };
@@ -67,8 +67,24 @@ export default function DraftPage() {
   const [selecting, setSelecting] = useState<{ team: NBATeam; prediction: "W" | "L" } | null>(null);
   const [saving, setSaving] = useState(false);
   const [draftModeChoice, setDraftModeChoice] = useState<"regular" | "snake" | null>(null);
+  const [nextMonthDraft, setNextMonthDraft] = useState<Draft | null | "loading">(null);
+  const [nextMonthYear, setNextMonthYear] = useState<number | null>(null);
+  const [nextMonthMonth, setNextMonthMonth] = useState<number | null>(null);
 
-  const fetchDraft = useCallback(async () => {
+  const fetchDraft = useCallback(async (y?: number, m?: number) => {
+    if (y != null && m != null) {
+      setError("");
+      try {
+        const res = await fetch(`/api/draft?year=${y}&month=${m}`);
+        const data = await res.json();
+        setNextMonthDraft(data.draft ?? null);
+        setNextMonthYear(y);
+        setNextMonthMonth(m);
+      } catch {
+        setNextMonthDraft(null);
+      }
+      return;
+    }
     setError("");
     try {
       const res = await fetch("/api/draft");
@@ -86,18 +102,54 @@ export default function DraftPage() {
     }
   }, []);
 
+  const loadDraftForMonth = useCallback(async (y: number, m: number) => {
+    try {
+      const res = await fetch(`/api/draft?year=${y}&month=${m}`);
+      const data = await res.json();
+      setPlayers(data.players ?? []);
+      setDraft(data.draft);
+      setPicks(data.picks ?? []);
+      setTeams(data.teams ?? []);
+      setTeamsSource(data.teamsSource ?? null);
+      setStandings(data.standings ?? {});
+      setNextMonthDraft(null);
+      setNextMonthYear(null);
+      setNextMonthMonth(null);
+    } catch (e) {
+      setError("Erreur chargement.");
+    }
+  }, []);
+
   useEffect(() => {
     fetchDraft();
   }, [fetchDraft]);
 
-  const startDraft = async (mode?: "regular" | "snake") => {
+  useEffect(() => {
+    if (draft?.status === "completed") {
+      const nextM = draft.month === 12 ? 1 : draft.month + 1;
+      const nextY = draft.month === 12 ? draft.year + 1 : draft.year;
+      setNextMonthDraft("loading");
+      fetchDraft(nextY, nextM);
+    } else {
+      setNextMonthDraft(null);
+      setNextMonthYear(null);
+      setNextMonthMonth(null);
+    }
+  }, [draft?.id, draft?.status, draft?.month, draft?.year, fetchDraft]);
+
+  const startDraft = async (mode?: "regular" | "snake", year?: number, month?: number) => {
     setError("");
     setSaving(true);
     try {
+      const body: { draft_mode?: "regular" | "snake"; year?: number; month?: number } = mode ? { draft_mode: mode } : {};
+      if (year != null && month != null) {
+        body.year = year;
+        body.month = month;
+      }
       const res = await fetch("/api/draft/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mode ? { draft_mode: mode } : {}),
+        body: JSON.stringify(body),
       });
       let data: { error?: string } = {};
       try {
@@ -115,7 +167,11 @@ export default function DraftPage() {
         setError(data.error ?? `Erreur ${res.status}`);
         return;
       }
-      await fetchDraft();
+      if (year != null && month != null) {
+        await loadDraftForMonth(year, month);
+      } else {
+        await fetchDraft();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
@@ -165,14 +221,24 @@ export default function DraftPage() {
   const draftedIds = new Set(picks.map((p) => p.nba_team_id));
   const currentTurn = draft ? getCurrentTurn(draft, players, picks.length) : null;
 
+  const showLaunchForNextMonth = draft?.status === "completed" && nextMonthDraft === null && nextMonthYear != null && nextMonthMonth != null;
+  const showLaunchUI = !draft || showLaunchForNextMonth;
+  const launchYear = showLaunchForNextMonth ? nextMonthYear! : new Date().getFullYear();
+  const launchMonth = showLaunchForNextMonth ? nextMonthMonth! : new Date().getMonth() + 1;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-neutral-900">
           Draft {draft ? `${MONTHS[draft.month]} ${draft.year}` : "mensuelle"}
         </h1>
-        {!draft && (
+        {showLaunchUI && (
           <div className="flex flex-wrap items-center gap-2">
+            {showLaunchForNextMonth && (
+              <span className="text-sm text-neutral-500">
+                Nouvelle draft : {MONTHS[launchMonth]} {launchYear}
+              </span>
+            )}
             {draftModeChoice == null ? (
               <>
                 <button
@@ -187,7 +253,7 @@ export default function DraftPage() {
                   onClick={() => setDraftModeChoice("snake")}
                   className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 active:scale-[0.98]"
                 >
-                  Serpent (A→D→C→B…)
+                  Serpent (A→B→C→D→D→C→B→A…)
                 </button>
               </>
             ) : (
@@ -197,7 +263,7 @@ export default function DraftPage() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => startDraft(draftModeChoice)}
+                  onClick={() => startDraft(draftModeChoice, showLaunchForNextMonth ? launchYear : undefined, showLaunchForNextMonth ? launchMonth : undefined)}
                   disabled={saving}
                   className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
                 >
@@ -231,7 +297,8 @@ export default function DraftPage() {
                 <thead>
                   <tr className="text-left text-neutral-500">
                     <th className="pb-2 pr-3">Joueur</th>
-                    <th className="pb-2">Équipes (W / L)</th>
+                    <th className="pb-2 pr-2 w-8">Type</th>
+                    <th className="pb-2">Équipes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -242,111 +309,56 @@ export default function DraftPage() {
                       L: playerPicks.filter((p) => p.prediction === "L").sort((a, b) => a.pick_order - b.pick_order),
                     };
                     return (
-                      <tr key={pl.id} className="border-t border-neutral-100">
-                        <td className="py-2 pr-3 font-medium text-neutral-900">{pl.name}</td>
-                        <td className="py-2 text-neutral-600">
-                          {playerPicks.length === 0 ? (
-                            "—"
-                          ) : (
-                            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <Fragment key={pl.id}>
+                        <tr className="border-t border-neutral-100">
+                          <td className="py-1.5 pr-3 font-medium text-neutral-900">{pl.name}</td>
+                          <td className="py-1.5 pr-2 text-neutral-500">W</td>
+                          <td className="py-1.5 text-neutral-600">
+                            {byPrediction.W.length === 0 ? (
+                              "—"
+                            ) : (
                               <span className="flex flex-wrap items-center gap-1">
-                                <span className="text-xs text-neutral-400">W:</span>
                                 {byPrediction.W.map((p) => {
                                   const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
                                   return (
-                                    <span key={p.id} className="inline-flex items-center gap-1">
-                                      <img
-                                        src={nbaTeamLogoUrl(abbr)}
-                                        alt=""
-                                        className="h-5 w-5 rounded-full object-contain"
-                                      />
+                                    <span key={p.id} className="inline-flex items-center gap-0.5">
+                                      <img src={nbaTeamLogoUrl(abbr)} alt="" className="h-5 w-5 rounded-full object-contain" />
                                       <span>{abbr}</span>
                                     </span>
                                   );
                                 })}
-                                {byPrediction.W.length === 0 && <span className="text-neutral-300">—</span>}
                               </span>
+                            )}
+                          </td>
+                        </tr>
+                        <tr className="border-t border-neutral-100">
+                          <td className="py-1.5 pr-3 font-medium text-neutral-900"></td>
+                          <td className="py-1.5 pr-2 text-neutral-500">L</td>
+                          <td className="py-1.5 text-neutral-600">
+                            {byPrediction.L.length === 0 ? (
+                              "—"
+                            ) : (
                               <span className="flex flex-wrap items-center gap-1">
-                                <span className="text-xs text-neutral-400">L:</span>
                                 {byPrediction.L.map((p) => {
                                   const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
                                   return (
-                                    <span key={p.id} className="inline-flex items-center gap-1">
-                                      <img
-                                        src={nbaTeamLogoUrl(abbr)}
-                                        alt=""
-                                        className="h-5 w-5 rounded-full object-contain"
-                                      />
+                                    <span key={p.id} className="inline-flex items-center gap-0.5">
+                                      <img src={nbaTeamLogoUrl(abbr)} alt="" className="h-5 w-5 rounded-full object-contain" />
                                       <span>{abbr}</span>
                                     </span>
                                   );
                                 })}
-                                {byPrediction.L.length === 0 && <span className="text-neutral-300">—</span>}
                               </span>
-                            </span>
-                          )}
-                        </td>
-                      </tr>
+                            )}
+                          </td>
+                        </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>
               </table>
             </div>
           </div>
-
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
-            <p className="text-sm text-neutral-500">
-              Mode : {draft.draft_mode === "snake" ? "Serpent (A→D→D→A…)" : "Régulier (A→B→C→D…)"}
-            </p>
-            {currentTurn && draft.status === "draft" && (
-              <p className="mt-2 text-lg font-medium text-neutral-900">
-                À toi de choisir : <span className="text-accent">{currentTurn.label}</span>
-              </p>
-            )}
-            {draft.status === "completed" && (
-              <p className="mt-2 text-neutral-500">Draft terminée.</p>
-            )}
-          </div>
-
-          {draft.status === "draft" && currentTurn && (
-            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
-              {selecting ? (
-                <>
-                  <p className="mb-3 text-sm text-neutral-500">
-                    Pari pour <strong className="text-neutral-900">{selecting.team.abbreviation}</strong> ({selecting.team.full_name ?? selecting.team.city + " " + selecting.team.name}) :
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() =>
-                        makePick(currentTurn!.player.id, selecting!.team, "W")
-                      }
-                      disabled={saving}
-                      className="rounded-xl bg-green-500 px-4 py-2.5 font-medium text-white transition hover:bg-green-600 disabled:opacity-50 active:scale-[0.98]"
-                    >
-                      W (gagne)
-                    </button>
-                    <button
-                      onClick={() =>
-                        makePick(currentTurn!.player.id, selecting!.team, "L")
-                      }
-                      disabled={saving}
-                      className="rounded-xl bg-red-500 px-4 py-2.5 font-medium text-white transition hover:bg-red-600 disabled:opacity-50 active:scale-[0.98]"
-                    >
-                      L (perd)
-                    </button>
-                    <button
-                      onClick={() => setSelecting(null)}
-                      className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-600 transition hover:bg-neutral-50"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-neutral-500">Choisis une équipe ci-dessous puis ton pari (W/L).</p>
-              )}
-            </div>
-          )}
 
           {teams.length === 0 && draft.status === "draft" && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -371,16 +383,9 @@ export default function DraftPage() {
                 const fullName = team.full_name ?? `${team.city} ${team.name}`;
 
                 return (
-                  <button
+                  <div
                     key={team.id}
-                    type="button"
-                    disabled={(picked && !isActive) || draft.status === "completed" || !currentTurn}
-                    onClick={() => {
-                      if (!canPick && !isActive) return;
-                      if (isActive) return;
-                      setSelecting({ team, prediction: "W" });
-                    }}
-                    className={`flex items-center gap-2 rounded-xl border p-2 text-left transition ${
+                    className={`flex flex-col gap-1.5 rounded-xl border p-2 text-left transition ${
                       isActive
                         ? "cursor-default border-accent bg-accent/10 ring-2 ring-accent shadow-card"
                         : picked
@@ -390,20 +395,58 @@ export default function DraftPage() {
                             : "cursor-default border-neutral-200 bg-neutral-50"
                     }`}
                   >
-                    <img
-                      src={nbaTeamLogoUrl(team.abbreviation)}
-                      alt=""
-                      className="h-7 w-7 shrink-0 rounded-full object-contain bg-neutral-100"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-neutral-900 text-sm leading-tight">
-                        {team.abbreviation ?? team.full_name}
+                    <button
+                      type="button"
+                      disabled={(picked && !isActive) || draft.status === "completed" || !currentTurn}
+                      onClick={() => {
+                        if (!canPick && !isActive) return;
+                        if (isActive) return;
+                        setSelecting({ team, prediction: "W" });
+                      }}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      <img
+                        src={nbaTeamLogoUrl(team.abbreviation)}
+                        alt=""
+                        className="h-7 w-7 shrink-0 rounded-full object-contain bg-neutral-100"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-neutral-900 text-sm leading-tight">
+                          {team.abbreviation ?? team.full_name}
+                        </div>
+                        <div className="truncate text-[10px] text-neutral-500">
+                          ({fullName})
+                        </div>
                       </div>
-                      <div className="truncate text-[10px] text-neutral-500">
-                        ({fullName})
+                    </button>
+                    {isActive && currentTurn && (
+                      <div className="flex flex-wrap gap-1 border-t border-neutral-200 pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => makePick(currentTurn.player.id, team, "W")}
+                          disabled={saving}
+                          className="flex-1 rounded-lg bg-green-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-green-600 disabled:opacity-50"
+                        >
+                          W
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => makePick(currentTurn.player.id, team, "L")}
+                          disabled={saving}
+                          className="flex-1 rounded-lg bg-red-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-red-600 disabled:opacity-50"
+                        >
+                          L
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelecting(null)}
+                          className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 transition hover:bg-neutral-50"
+                        >
+                          Annuler
+                        </button>
                       </div>
-                    </div>
-                  </button>
+                    )}
+                  </div>
                 );
               })}
           </div>
