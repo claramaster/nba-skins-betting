@@ -61,24 +61,36 @@ export async function GET(request: NextRequest) {
   }
 
   const gamesWithWinner = (gameResults ?? []).filter((g) => g.winner_team_id != null);
+  type GameRow = (typeof gameResults)[number];
+  const winnerAbbr = (g: GameRow) =>
+    g.winner_team_id === g.home_team_id
+      ? (g.home_team_abbreviation ?? "")
+      : (g.visitor_team_abbreviation ?? "");
 
   for (const g of gamesWithWinner) {
     const winnerId = g.winner_team_id!;
     for (const pl of players) {
-      const teamIds = playerTeamIds[pl.id];
-      if (!teamIds) continue;
-          const hasHome = teamIds.has(g.home_team_id);
-      const hasVisitor = teamIds.has(g.visitor_team_id);
-      if (!hasHome && !hasVisitor) continue;
-      const ownedTeamId = hasHome ? g.home_team_id : g.visitor_team_id;
-      const pick = pickList.find(
-        (p) => p.player_id === pl.id && p.nba_team_id === ownedTeamId
+      let added = 0;
+      const homePick = pickList.find(
+        (p) => p.player_id === pl.id && p.nba_team_id === g.home_team_id
       );
-      if (!pick) continue;
-      matchCountByPlayer[pl.id] = (matchCountByPlayer[pl.id] ?? 0) + 1;
-      const won = winnerId === ownedTeamId;
-      if ((pick.prediction === "W" && won) || (pick.prediction === "L" && !won)) {
-        correctByPlayer[pl.id] = (correctByPlayer[pl.id] ?? 0) + 1;
+      const visitorPick = pickList.find(
+        (p) => p.player_id === pl.id && p.nba_team_id === g.visitor_team_id
+      );
+      if (homePick) {
+        const won = winnerId === g.home_team_id;
+        if ((homePick.prediction === "W" && won) || (homePick.prediction === "L" && !won)) {
+          correctByPlayer[pl.id] = (correctByPlayer[pl.id] ?? 0) + 1;
+        }
+      }
+      if (visitorPick) {
+        const won = winnerId === g.visitor_team_id;
+        if ((visitorPick.prediction === "W" && won) || (visitorPick.prediction === "L" && !won)) {
+          correctByPlayer[pl.id] = (correctByPlayer[pl.id] ?? 0) + 1;
+        }
+      }
+      if (homePick || visitorPick) {
+        matchCountByPlayer[pl.id] = (matchCountByPlayer[pl.id] ?? 0) + 1;
       }
     }
   }
@@ -91,33 +103,53 @@ export async function GET(request: NextRequest) {
   const scoreRows = players.map((pl) => {
     const playerPicks = picksWithAbbr.filter((p) => p.player_id === pl.id);
     const pointsByPick = new Map<string, number>();
+    const gamesByPick = new Map<string, { game_date: string; home_abbreviation: string; visitor_abbreviation: string; winner_abbreviation: string }[]>();
     for (const pick of playerPicks) {
       pointsByPick.set(`${pick.nba_team_id}-${pick.prediction}`, 0);
+      gamesByPick.set(`${pick.nba_team_id}-${pick.prediction}`, []);
     }
     for (const g of gamesWithWinner) {
-      const teamIds = playerTeamIds[pl.id];
-      if (!teamIds) continue;
-      const hasHome = teamIds.has(g.home_team_id);
-      const hasVisitor = teamIds.has(g.visitor_team_id);
-      if (!hasHome && !hasVisitor) continue;
-      const ownedTeamId = hasHome ? g.home_team_id : g.visitor_team_id;
-      const pick = pickList.find(
-        (p) => p.player_id === pl.id && p.nba_team_id === ownedTeamId
+      const gameInfo = {
+        game_date: g.game_date,
+        home_abbreviation: g.home_team_abbreviation ?? "",
+        visitor_abbreviation: g.visitor_team_abbreviation ?? "",
+        winner_abbreviation: winnerAbbr(g),
+      };
+      const homePick = pickList.find(
+        (p) => p.player_id === pl.id && p.nba_team_id === g.home_team_id
       );
-      if (!pick) continue;
-      const won = g.winner_team_id === ownedTeamId;
-      const isCorrect = (pick.prediction === "W" && won) || (pick.prediction === "L" && !won);
-      if (isCorrect) {
-        const key = `${pick.nba_team_id}-${pick.prediction}`;
-        pointsByPick.set(key, (pointsByPick.get(key) ?? 0) + 1);
+      const visitorPick = pickList.find(
+        (p) => p.player_id === pl.id && p.nba_team_id === g.visitor_team_id
+      );
+      if (homePick) {
+        const won = g.winner_team_id === g.home_team_id;
+        const isCorrect = (homePick.prediction === "W" && won) || (homePick.prediction === "L" && !won);
+        if (isCorrect) {
+          const key = `${homePick.nba_team_id}-${homePick.prediction}`;
+          pointsByPick.set(key, (pointsByPick.get(key) ?? 0) + 1);
+          gamesByPick.get(key)!.push(gameInfo);
+        }
+      }
+      if (visitorPick) {
+        const won = g.winner_team_id === g.visitor_team_id;
+        const isCorrect = (visitorPick.prediction === "W" && won) || (visitorPick.prediction === "L" && !won);
+        if (isCorrect) {
+          const key = `${visitorPick.nba_team_id}-${visitorPick.prediction}`;
+          pointsByPick.set(key, (pointsByPick.get(key) ?? 0) + 1);
+          gamesByPick.get(key)!.push(gameInfo);
+        }
       }
     }
 
-    const teamScores = playerPicks.map((p) => ({
-      nba_team_abbreviation: p.nba_team_abbreviation ?? String(p.nba_team_id),
-      prediction: p.prediction,
-      points: pointsByPick.get(`${p.nba_team_id}-${p.prediction}`) ?? 0,
-    }));
+    const teamScores = playerPicks.map((p) => {
+      const key = `${p.nba_team_id}-${p.prediction}`;
+      return {
+        nba_team_abbreviation: p.nba_team_abbreviation ?? String(p.nba_team_id),
+        prediction: p.prediction,
+        points: pointsByPick.get(key) ?? 0,
+        games: gamesByPick.get(key) ?? [],
+      };
+    });
 
     const totalCorrect = correctByPlayer[pl.id] ?? 0;
     return {

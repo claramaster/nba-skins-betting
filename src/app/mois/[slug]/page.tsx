@@ -33,7 +33,18 @@ type NBATeam = {
   city: string;
   name: string;
 };
-type TeamScore = { nba_team_abbreviation: string; prediction: string; points: number };
+type GameInTooltip = {
+  game_date: string;
+  home_abbreviation: string;
+  visitor_abbreviation: string;
+  winner_abbreviation: string;
+};
+type TeamScore = {
+  nba_team_abbreviation: string;
+  prediction: string;
+  points: number;
+  games?: GameInTooltip[];
+};
 type ScoreRow = {
   player_id: string;
   player_name: string;
@@ -401,8 +412,8 @@ export default function MoisPage() {
                     };
                     const isCurrentTurn = currentTurn?.player.id === pl.id;
                     const teamScores = teamScoresByPlayerId.get(pl.id) ?? [];
-                    const ptsFor = (abbr: string, pred: string) =>
-                      teamScores.find((ts) => ts.nba_team_abbreviation === abbr && ts.prediction === pred)?.points ?? null;
+                    const teamScoreFor = (abbr: string, pred: string) =>
+                      teamScores.find((ts) => ts.nba_team_abbreviation === abbr && ts.prediction === pred);
                     const totalScore = scoreByPlayerId.get(pl.id);
                     const renderTeams = (predList: Pick[]) =>
                       predList.length === 0
@@ -411,11 +422,33 @@ export default function MoisPage() {
                             <span className="flex flex-wrap items-center gap-1">
                               {predList.map((p) => {
                                 const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
-                                const pts = draftCompleted ? ptsFor(abbr, p.prediction) : null;
+                                const ts = draftCompleted ? teamScoreFor(abbr, p.prediction) : null;
+                                const pts = ts?.points ?? null;
+                                const games = ts?.games ?? [];
                                 return (
-                                  <span key={p.id} className="inline-flex items-center gap-0.5">
+                                  <span key={p.id} className="relative inline-flex items-center gap-0.5 group">
                                     <img src={nbaTeamLogoUrl(abbr)} alt="" className="h-5 w-5 rounded-full object-contain" />
                                     <span>{abbr}{pts != null ? ` (${pts})` : ""}</span>
+                                    {games.length > 0 && (
+                                      <div className="pointer-events-none absolute left-0 bottom-full z-50 mb-1 hidden min-w-[240px] rounded-lg border border-neutral-200 bg-white p-2 shadow-lg text-left text-xs group-hover:block">
+                                        <div className="font-medium text-neutral-500 mb-1">Matchs</div>
+                                        {games.map((gm, i) => {
+                                          const d = gm.game_date ? new Date(gm.game_date) : null;
+                                          const dateStr = d ? `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}` : "";
+                                          return (
+                                            <div key={i} className="flex items-center gap-1.5 py-0.5 border-b border-neutral-100 last:border-0">
+                                              {dateStr && <span className="text-neutral-400 shrink-0 w-8">{dateStr}</span>}
+                                              <img src={nbaTeamLogoUrl(gm.home_abbreviation)} alt="" className="h-4 w-4 rounded-full object-contain shrink-0" />
+                                              <span>{gm.home_abbreviation}</span>
+                                              <span className="text-neutral-400">–</span>
+                                              <img src={nbaTeamLogoUrl(gm.visitor_abbreviation)} alt="" className="h-4 w-4 rounded-full object-contain shrink-0" />
+                                              <span>{gm.visitor_abbreviation}</span>
+                                              <span className="ml-1 font-bold text-neutral-900">{gm.winner_abbreviation}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </span>
                                 );
                               })}
