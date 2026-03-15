@@ -57,6 +57,33 @@ export default function HomePage() {
     staticPoints: STATIC_SKIN_POINTS[m.month],
   }));
 
+  const totalByPlayer: Record<string, number> = {};
+  for (const p of playersOrdered) {
+    let t = overUnderPoints[p.id] ?? 0;
+    for (const row of skinRows) {
+      const staticVal = row.staticPoints;
+      const i = playersOrdered.indexOf(p);
+      const staticPts = staticVal?.[i];
+      const apiKey = `${row.year}-${row.month}`;
+      const apiVal = pointsByPlayerMonth[p.id]?.[apiKey];
+      const pts = staticPts != null ? staticPts : apiVal;
+      t += pts ?? 0;
+    }
+    totalByPlayer[p.id] = t;
+  }
+
+  const playersByRank = [...playersOrdered].sort(
+    (a, b) => (totalByPlayer[b.id] ?? 0) - (totalByPlayer[a.id] ?? 0)
+  );
+
+  const medal = (rank: number) => {
+    if (rank === 0) return "🥇";
+    if (rank === 1) return "🥈";
+    if (rank === 2) return "🥉";
+    if (rank === playersByRank.length - 1) return "🍫";
+    return "";
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-2xl font-semibold text-neutral-900">
@@ -71,17 +98,25 @@ export default function HomePage() {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
                 <th className="p-4 font-medium text-neutral-500">Jeu</th>
-                {playersOrdered.map((p) => (
+                {playersByRank.map((p, rank) => (
                   <th key={p.id} className="p-4 text-center font-medium text-neutral-500">
-                    {p.name}
+                    {medal(rank)} {p.name}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
+              <tr className="border-b-2 border-neutral-300 bg-neutral-100/80">
+                <td className="p-4 font-bold text-neutral-900">Total</td>
+                {playersByRank.map((p) => (
+                  <td key={p.id} className="p-4 text-center font-bold text-accent">
+                    {totalByPlayer[p.id] ?? "—"}
+                  </td>
+                ))}
+              </tr>
               <tr className="border-b border-neutral-100">
                 <td className="p-4 font-medium text-neutral-900">Over / Under</td>
-                {playersOrdered.map((p) => (
+                {playersByRank.map((p) => (
                   <td key={p.id} className="p-4 text-center font-semibold text-accent">
                     {overUnderPoints[p.id] ?? "—"}
                   </td>
@@ -90,7 +125,8 @@ export default function HomePage() {
               {skinRows.map((row) => (
                 <tr key={`${row.year}-${row.month}`} className="border-b border-neutral-100 last:border-0">
                   <td className="p-4 font-medium text-neutral-900">{row.label}</td>
-                  {playersOrdered.map((p, i) => {
+                  {playersByRank.map((p) => {
+                    const i = playersOrdered.indexOf(p);
                     const staticVal = row.staticPoints?.[i];
                     const apiKey = `${row.year}-${row.month}`;
                     const apiVal = pointsByPlayerMonth[p.id]?.[apiKey];

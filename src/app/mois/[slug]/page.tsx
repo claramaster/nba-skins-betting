@@ -258,6 +258,14 @@ export default function MoisPage() {
       return next;
     });
   };
+  /** Pour le select d’ordre : indices déjà choisis aux autres positions (pour exclure des options). */
+  const chosenIndicesExcept = (pos: number) =>
+    (orderChoice ?? []).filter((_, p) => p !== pos).filter((i) => i >= 0);
+  const scoreByPlayerId = new Map(scoreRows.map((r) => [r.player_id, r.score_count]));
+  const teamScoresByPlayerId = new Map(
+    scoreRows.map((r) => [r.player_id, r.teamScores ?? []])
+  );
+  const draftCompleted = draft?.status === "completed";
 
   if (loading) {
     return (
@@ -270,13 +278,24 @@ export default function MoisPage() {
   const draftedIds = new Set(picks.map((p) => p.nba_team_id));
   const currentTurn = draft ? getCurrentTurn(draft, players, picks.length) : null;
   const hasNoDraft = !draft;
-  const sortedScores = [...scoreRows].sort((a, b) => b.score_count - a.score_count);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold text-neutral-900">
-        {fullName}
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-neutral-900">
+          {fullName}
+        </h1>
+        {draftCompleted && (
+          <button
+            type="button"
+            onClick={refreshScores}
+            disabled={refreshing}
+            className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 disabled:opacity-50 active:scale-[0.98]"
+          >
+            {refreshing ? "Rafraîchissement…" : "Rafraîchir les scores"}
+          </button>
+        )}
+      </div>
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -309,21 +328,27 @@ export default function MoisPage() {
                 Ordre A→B→C→D — {draftModeChoice === "snake" ? "Serpent" : "Classique"}
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                {["A", "B", "C", "D"].map((letter, pos) => (
-                  <label key={letter} className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-neutral-600">{letter}</span>
-                    <select
-                      className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-neutral-900"
-                      value={orderChoice?.[pos] != null && orderChoice[pos]! >= 0 ? orderChoice[pos]! : ""}
-                      onChange={(e) => setOrderAt(pos, parseInt(e.target.value, 10))}
-                    >
-                      <option value="">—</option>
-                      {players.map((pl, idx) => (
-                        <option key={pl.id} value={idx}>{pl.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
+                {["A", "B", "C", "D"].map((letter, pos) => {
+                  const taken = chosenIndicesExcept(pos);
+                  const currentVal = orderChoice?.[pos];
+                  return (
+                    <label key={letter} className="flex items-center gap-2 text-sm">
+                      <span className="font-medium text-neutral-600">{letter}</span>
+                      <select
+                        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-neutral-900"
+                        value={currentVal != null && currentVal >= 0 ? currentVal : ""}
+                        onChange={(e) => setOrderAt(pos, parseInt(e.target.value, 10))}
+                      >
+                        <option value="">—</option>
+                        {players.map((pl, idx) =>
+                          taken.includes(idx) && currentVal !== idx ? null : (
+                            <option key={pl.id} value={idx}>{pl.name}</option>
+                          )
+                        )}
+                      </select>
+                    </label>
+                  );
+                })}
                 <button
                   type="button"
                   onClick={() => startDraft(draftModeChoice, orderChoiceValid ? orderChoice : null)}
@@ -356,6 +381,9 @@ export default function MoisPage() {
                     <th className="pb-2 pr-3">Joueur</th>
                     <th className="pb-2 pr-2 w-8">Type</th>
                     <th className="pb-2">Équipes</th>
+                    {draftCompleted && (
+                      <th className="pb-2 pl-2 text-right">Score total</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -365,44 +393,50 @@ export default function MoisPage() {
                       W: playerPicks.filter((p) => p.prediction === "W").sort((a, b) => a.pick_order - b.pick_order),
                       L: playerPicks.filter((p) => p.prediction === "L").sort((a, b) => a.pick_order - b.pick_order),
                     };
+                    const isCurrentTurn = currentTurn?.player.id === pl.id;
+                    const teamScores = teamScoresByPlayerId.get(pl.id) ?? [];
+                    const ptsFor = (abbr: string, pred: string) =>
+                      teamScores.find((ts) => ts.nba_team_abbreviation === abbr && ts.prediction === pred)?.points ?? null;
+                    const totalScore = scoreByPlayerId.get(pl.id);
+                    const renderTeams = (predList: Pick[]) =>
+                      predList.length === 0
+                        ? "—"
+                        : (
+                            <span className="flex flex-wrap items-center gap-1">
+                              {predList.map((p) => {
+                                const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
+                                const pts = draftCompleted ? ptsFor(abbr, p.prediction) : null;
+                                return (
+                                  <span key={p.id} className="inline-flex items-center gap-0.5">
+                                    <img src={nbaTeamLogoUrl(abbr)} alt="" className="h-5 w-5 rounded-full object-contain" />
+                                    <span>{abbr}{pts != null ? ` (${pts})` : ""}</span>
+                                  </span>
+                                );
+                              })}
+                            </span>
+                          );
                     return (
                       <Fragment key={pl.id}>
-                        <tr className="border-t border-neutral-100">
-                          <td className="py-1.5 pr-3 font-medium text-neutral-900">{pl.name}</td>
+                        <tr className={`border-t border-neutral-100 ${isCurrentTurn ? "bg-accent/5" : ""}`}>
+                          <td className="py-1.5 pr-3 font-medium text-neutral-900">
+                            {isCurrentTurn && <span className="mr-1">→ </span>}
+                            <span className={isCurrentTurn ? "font-bold" : ""}>{pl.name}</span>
+                          </td>
                           <td className="py-1.5 pr-2 text-neutral-500">W</td>
                           <td className="py-1.5 text-neutral-600">
-                            {byPrediction.W.length === 0 ? "—" : (
-                              <span className="flex flex-wrap items-center gap-1">
-                                {byPrediction.W.map((p) => {
-                                  const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
-                                  return (
-                                    <span key={p.id} className="inline-flex items-center gap-0.5">
-                                      <img src={nbaTeamLogoUrl(abbr)} alt="" className="h-5 w-5 rounded-full object-contain" />
-                                      <span>{abbr}</span>
-                                    </span>
-                                  );
-                                })}
-                              </span>
-                            )}
+                            {renderTeams(byPrediction.W)}
                           </td>
+                          {draftCompleted && (
+                            <td rowSpan={2} className="py-1.5 pl-2 text-right font-semibold text-accent align-top">
+                              {totalScore != null ? totalScore : "—"}
+                            </td>
+                          )}
                         </tr>
-                        <tr className="border-t border-neutral-100">
+                        <tr className={`border-t border-neutral-100 ${isCurrentTurn ? "bg-accent/5" : ""}`}>
                           <td className="py-1.5 pr-3 font-medium text-neutral-900"></td>
                           <td className="py-1.5 pr-2 text-neutral-500">L</td>
                           <td className="py-1.5 text-neutral-600">
-                            {byPrediction.L.length === 0 ? "—" : (
-                              <span className="flex flex-wrap items-center gap-1">
-                                {byPrediction.L.map((p) => {
-                                  const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
-                                  return (
-                                    <span key={p.id} className="inline-flex items-center gap-0.5">
-                                      <img src={nbaTeamLogoUrl(abbr)} alt="" className="h-5 w-5 rounded-full object-contain" />
-                                      <span>{abbr}</span>
-                                    </span>
-                                  );
-                                })}
-                              </span>
-                            )}
+                            {renderTeams(byPrediction.L)}
                           </td>
                         </tr>
                       </Fragment>
@@ -510,57 +544,6 @@ export default function MoisPage() {
                 })}
             </div>
           )}
-
-          {/* Scores du mois + Rafraîchir */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-neutral-900">Scores (nombre de matchs avec bon pari)</h2>
-              <button
-                type="button"
-                onClick={refreshScores}
-                disabled={refreshing}
-                className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 disabled:opacity-50 active:scale-[0.98]"
-              >
-                {refreshing ? "Rafraîchissement…" : "Rafraîchir"}
-              </button>
-            </div>
-            {sortedScores.length === 0 ? (
-              <p className="mt-3 text-sm text-neutral-500">Aucun score (rafraîchir pour importer les résultats du mois).</p>
-            ) : (
-              <div className="mt-3 overflow-hidden rounded-xl border border-neutral-100">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-neutral-200 bg-neutral-50">
-                      <th className="p-3 font-medium text-neutral-500">Rang</th>
-                      <th className="p-3 font-medium text-neutral-500">Joueur</th>
-                      <th className="p-3 text-right font-medium text-neutral-500">Total</th>
-                      <th className="p-3 font-medium text-neutral-500">Détail par équipe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedScores.map((row, i) => (
-                      <tr key={row.player_id} className="border-b border-neutral-100 last:border-0">
-                        <td className="p-3 font-medium text-neutral-400">{i + 1}</td>
-                        <td className="p-3 font-medium text-neutral-900">{row.player_name}</td>
-                        <td className="p-3 text-right font-semibold text-accent">{row.score_count}</td>
-                        <td className="p-3 text-neutral-600">
-                          {row.teamScores?.length ? (
-                            <span className="flex flex-wrap gap-x-2 gap-y-0.5">
-                              {row.teamScores.map((ts, k) => (
-                                <span key={k} className="text-xs">
-                                  {ts.nba_team_abbreviation} ({ts.prediction}): {ts.points}
-                                </span>
-                              ))}
-                            </span>
-                          ) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
         </>
       )}
     </div>
