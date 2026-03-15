@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 type TeamScore = { nba_team_abbreviation: string; prediction: string; points: number };
 type ScoreRow = {
@@ -119,14 +118,7 @@ export default function ScoresPage() {
           >
             {syncingBbref ? "…" : "Importer (basketball-reference)"}
           </button>
-          {finalized ? (
-            <Link
-              href="/draft"
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition hover:opacity-90 active:scale-[0.98]"
-            >
-              Lancer une nouvelle draft
-            </Link>
-          ) : (
+          {!finalized && (
             <button
               onClick={finalize}
               disabled={finalizing || loading}

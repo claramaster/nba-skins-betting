@@ -12,10 +12,18 @@ const MONTH_LABELS: Record<number, string> = {
   1: "January",
   2: "February",
   3: "March",
-  4: "April",
 };
 
 const DISPLAY_ORDER = ["carlito", "papa", "vincent", "tonio"];
+
+/** Points passés par mois (ordre joueurs : Carlito, Papa, Vincent, Tonio). */
+const STATIC_SKIN_POINTS: Record<number, number[]> = {
+  11: [6, 1, 3, 0],   // novembre
+  12: [0, 6, 6, 1],   // décembre
+  1: [0, 1, 6, 6],    // janvier
+  2: [6, 3, 1, 1],    // février
+};
+const SKIN_MONTHS: number[] = [11, 12, 1, 2, 3];
 
 export default function HomePage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -51,11 +59,10 @@ export default function HomePage() {
     });
   }
 
-  const skinRows = months.map((m) => ({
-    key: `${m.year}-${m.month}`,
-    label: `Skin ${MONTH_LABELS[m.month] ?? m.month}`,
-    year: m.year,
-    month: m.month,
+  const skinRows = SKIN_MONTHS.map((monthNum) => ({
+    month: monthNum,
+    label: `Skin ${MONTH_LABELS[monthNum] ?? monthNum}`,
+    staticPoints: STATIC_SKIN_POINTS[monthNum],
   }));
 
   return (
@@ -97,10 +104,15 @@ export default function HomePage() {
                 ))}
               </tr>
               {skinRows.map((row) => (
-                <tr key={row.key} className="border-b border-neutral-100 last:border-0">
+                <tr key={row.month} className="border-b border-neutral-100 last:border-0">
                   <td className="p-4 font-medium text-neutral-900">{row.label}</td>
-                  {playersOrdered.map((p) => {
-                    const pts = pointsByPlayerMonth[p.id]?.[row.key];
+                  {playersOrdered.map((p, i) => {
+                    const staticVal = row.staticPoints?.[i];
+                    const apiKey = months.find((m) => m.month === row.month)
+                      ? `${months.find((m) => m.month === row.month)!.year}-${row.month}`
+                      : null;
+                    const apiVal = apiKey ? pointsByPlayerMonth[p.id]?.[apiKey] : undefined;
+                    const pts = staticVal != null ? staticVal : apiVal;
                     return (
                       <td key={p.id} className="p-4 text-center font-semibold text-accent">
                         {pts != null && pts > 0 ? pts : "—"}

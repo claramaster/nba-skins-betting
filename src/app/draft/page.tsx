@@ -129,7 +129,7 @@ export default function DraftPage() {
   }, [fetchDraft]);
 
   useEffect(() => {
-    if (draft?.status === "completed" && finalized) {
+    if (draft?.status === "completed") {
       const nextM = draft.month === 12 ? 1 : draft.month + 1;
       const nextY = draft.month === 12 ? draft.year + 1 : draft.year;
       setNextMonthDraft("loading");
@@ -139,7 +139,7 @@ export default function DraftPage() {
       setNextMonthYear(null);
       setNextMonthMonth(null);
     }
-  }, [draft?.id, draft?.status, draft?.month, draft?.year, finalized, fetchDraft]);
+  }, [draft?.id, draft?.status, draft?.month, draft?.year, fetchDraft]);
 
   const cancelDraft = async () => {
     if (!draft || !window.confirm("Annuler la draft en cours ? Les choix seront supprimés.")) return;
@@ -251,7 +251,7 @@ export default function DraftPage() {
   const draftedIds = new Set(picks.map((p) => p.nba_team_id));
   const currentTurn = draft ? getCurrentTurn(draft, players, picks.length) : null;
 
-  const showLaunchForNextMonth = draft?.status === "completed" && finalized && nextMonthDraft === null && nextMonthYear != null && nextMonthMonth != null;
+  const showLaunchForNextMonth = draft?.status === "completed" && nextMonthDraft === null && nextMonthYear != null && nextMonthMonth != null;
   const showLaunchUI = !draft || showLaunchForNextMonth;
   const launchYear = showLaunchForNextMonth ? nextMonthYear! : new Date().getFullYear();
   const launchMonth = showLaunchForNextMonth ? nextMonthMonth! : new Date().getMonth() + 1;
@@ -321,7 +321,7 @@ export default function DraftPage() {
                   disabled={saving || !orderChoiceValid}
                   className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
                 >
-                  {saving ? "…" : "Lancer la draft"}
+                  {saving ? "…" : showLaunchForNextMonth ? "Lancer une nouvelle draft" : "Lancer la draft"}
                 </button>
                 <button
                   type="button"
