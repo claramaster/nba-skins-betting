@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { nbaTeamLogoUrl } from "@/lib/nba-team-logo";
 
 type Player = { id: string; slug: string; name: string };
 type Draft = {
@@ -65,6 +66,7 @@ export default function DraftPage() {
   const [error, setError] = useState("");
   const [selecting, setSelecting] = useState<{ team: NBATeam; prediction: "W" | "L" } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [draftModeChoice, setDraftModeChoice] = useState<"regular" | "snake" | null>(null);
 
   const fetchDraft = useCallback(async () => {
     setError("");
@@ -88,14 +90,14 @@ export default function DraftPage() {
     fetchDraft();
   }, [fetchDraft]);
 
-  const startDraft = async () => {
+  const startDraft = async (mode?: "regular" | "snake") => {
     setError("");
     setSaving(true);
     try {
       const res = await fetch("/api/draft/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(mode ? { draft_mode: mode } : {}),
       });
       let data: { error?: string } = {};
       try {
@@ -170,14 +172,47 @@ export default function DraftPage() {
           Draft {draft ? `${MONTHS[draft.month]} ${draft.year}` : "mensuelle"}
         </h1>
         {!draft && (
-          <button
-            type="button"
-            onClick={startDraft}
-            disabled={saving}
-            className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
-          >
-            {saving ? "…" : "Lancer la draft"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {draftModeChoice == null ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setDraftModeChoice("regular")}
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 active:scale-[0.98]"
+                >
+                  Classique (A→B→C→D…)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraftModeChoice("snake")}
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 active:scale-[0.98]"
+                >
+                  Serpent (A→D→C→B…)
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-neutral-500">
+                  Mode : {draftModeChoice === "snake" ? "Serpent" : "Classique"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => startDraft(draftModeChoice)}
+                  disabled={saving}
+                  className="rounded-2xl bg-accent px-5 py-2.5 font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
+                >
+                  {saving ? "…" : "Lancer la draft"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraftModeChoice(null)}
+                  className="rounded-2xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50"
+                >
+                  Changer
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -189,6 +224,76 @@ export default function DraftPage() {
 
       {draft && (
         <>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
+            <h2 className="text-lg font-semibold text-neutral-900">Récap — {picks.length}/28</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-neutral-500">
+                    <th className="pb-2 pr-3">Joueur</th>
+                    <th className="pb-2">Équipes (W / L)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {players.map((pl) => {
+                    const playerPicks = picks.filter((p) => p.player_id === pl.id);
+                    const byPrediction = {
+                      W: playerPicks.filter((p) => p.prediction === "W").sort((a, b) => a.pick_order - b.pick_order),
+                      L: playerPicks.filter((p) => p.prediction === "L").sort((a, b) => a.pick_order - b.pick_order),
+                    };
+                    return (
+                      <tr key={pl.id} className="border-t border-neutral-100">
+                        <td className="py-2 pr-3 font-medium text-neutral-900">{pl.name}</td>
+                        <td className="py-2 text-neutral-600">
+                          {playerPicks.length === 0 ? (
+                            "—"
+                          ) : (
+                            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="flex flex-wrap items-center gap-1">
+                                <span className="text-xs text-neutral-400">W:</span>
+                                {byPrediction.W.map((p) => {
+                                  const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
+                                  return (
+                                    <span key={p.id} className="inline-flex items-center gap-1">
+                                      <img
+                                        src={nbaTeamLogoUrl(abbr)}
+                                        alt=""
+                                        className="h-5 w-5 rounded-full object-contain"
+                                      />
+                                      <span>{abbr}</span>
+                                    </span>
+                                  );
+                                })}
+                                {byPrediction.W.length === 0 && <span className="text-neutral-300">—</span>}
+                              </span>
+                              <span className="flex flex-wrap items-center gap-1">
+                                <span className="text-xs text-neutral-400">L:</span>
+                                {byPrediction.L.map((p) => {
+                                  const abbr = p.nba_team_abbreviation ?? teams.find((t) => t.id === p.nba_team_id)?.abbreviation ?? String(p.nba_team_id);
+                                  return (
+                                    <span key={p.id} className="inline-flex items-center gap-1">
+                                      <img
+                                        src={nbaTeamLogoUrl(abbr)}
+                                        alt=""
+                                        className="h-5 w-5 rounded-full object-contain"
+                                      />
+                                      <span>{abbr}</span>
+                                    </span>
+                                  );
+                                })}
+                                {byPrediction.L.length === 0 && <span className="text-neutral-300">—</span>}
+                              </span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
             <p className="text-sm text-neutral-500">
               Mode : {draft.draft_mode === "snake" ? "Serpent (A→D→D→A…)" : "Régulier (A→B→C→D…)"}
@@ -256,83 +361,58 @@ export default function DraftPage() {
               Équipes : liste statique (sans API). Les scores seront calculés plus tard (fichier ou API).
             </p>
           )}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
-            {teams.map((team) => {
-              const picked = draftedIds.has(team.id);
-              const pick = picks.find((p) => p.nba_team_id === team.id);
-              const st = standings[team.id];
-              const wl = st ? `${st.wins}-${st.losses}` : "—";
-              const canPick = currentTurn && !picked && draft.status === "draft";
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            {teams
+              .filter((team) => !draftedIds.has(team.id) || selecting?.team.id === team.id)
+              .map((team) => {
+                const picked = draftedIds.has(team.id);
+                const isActive = selecting?.team.id === team.id;
+                const canPick = currentTurn && !picked && draft.status === "draft";
+                const fullName = team.full_name ?? `${team.city} ${team.name}`;
 
-              return (
-                <button
-                  key={team.id}
-                  type="button"
-                  disabled={picked || draft.status === "completed" || !currentTurn}
-                  onClick={() => {
-                    if (!canPick) return;
-                    setSelecting({ team, prediction: "W" });
-                  }}
-                  className={`rounded-2xl border p-3 text-left transition ${
-                    picked
-                      ? "cursor-default border-neutral-200 bg-neutral-100 opacity-60"
-                      : canPick
-                        ? "border-neutral-300 bg-white shadow-card hover:border-accent hover:shadow-card-hover cursor-pointer active:scale-[0.98]"
-                        : "cursor-default border-neutral-200 bg-neutral-50"
-                  }`}
-                >
-                  <div className="font-semibold text-neutral-900">
-                    {team.abbreviation ?? team.full_name}
-                  </div>
-                  <div className="text-xs text-neutral-500">W-L {wl}</div>
-                  {pick && (
-                    <div className="mt-1 text-xs text-neutral-500">
-                      {pick.players?.name} — {pick.prediction}
+                return (
+                  <button
+                    key={team.id}
+                    type="button"
+                    disabled={(picked && !isActive) || draft.status === "completed" || !currentTurn}
+                    onClick={() => {
+                      if (!canPick && !isActive) return;
+                      if (isActive) return;
+                      setSelecting({ team, prediction: "W" });
+                    }}
+                    className={`flex items-center gap-2 rounded-xl border p-2 text-left transition ${
+                      isActive
+                        ? "cursor-default border-accent bg-accent/10 ring-2 ring-accent shadow-card"
+                        : picked
+                          ? "cursor-default border-neutral-200 bg-neutral-100 opacity-60"
+                          : canPick
+                            ? "border-neutral-300 bg-white shadow-card hover:border-accent hover:shadow-card-hover cursor-pointer active:scale-[0.98]"
+                            : "cursor-default border-neutral-200 bg-neutral-50"
+                    }`}
+                  >
+                    <img
+                      src={nbaTeamLogoUrl(team.abbreviation)}
+                      alt=""
+                      className="h-7 w-7 shrink-0 rounded-full object-contain bg-neutral-100"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-neutral-900 text-sm leading-tight">
+                        {team.abbreviation ?? team.full_name}
+                      </div>
+                      <div className="truncate text-[10px] text-neutral-500">
+                        ({fullName})
+                      </div>
                     </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
-            <h2 className="text-lg font-semibold text-neutral-900">Récap — {picks.length}/28</h2>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-neutral-500">
-                    <th className="pb-2 pr-3">Joueur</th>
-                    <th className="pb-2">Équipes (W/L)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((pl) => {
-                    const playerPicks = picks.filter((p) => p.player_id === pl.id);
-                    return (
-                      <tr key={pl.id} className="border-t border-neutral-100">
-                        <td className="py-2 pr-3 font-medium text-neutral-900">{pl.name}</td>
-                        <td className="py-2 text-neutral-600">
-                          {playerPicks.length === 0
-                            ? "—"
-                            : playerPicks
-                                .sort((a, b) => a.pick_order - b.pick_order)
-                                .map((p) => `${p.nba_team_abbreviation ?? p.nba_team_id} (${p.prediction})`)
-                                .join(", ")}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  </button>
+                );
+              })}
           </div>
         </>
       )}
 
       {!draft && (
         <p className="text-neutral-500">
-          Aucune draft en cours pour ce mois. Clique sur « Lancer la draft » pour tirer au sort
-          l’ordre et le mode (serpent ou régulier).
+          Aucune draft en cours pour ce mois. Choisis le mode (classique ou serpent) puis lance la draft.
         </p>
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type ScoreRow = {
   player_id: string;
@@ -16,8 +17,10 @@ const MONTHS = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août",
 export default function ScoresPage() {
   const [scoreRows, setScoreRows] = useState<ScoreRow[]>([]);
   const [xMatchCount, setXMatchCount] = useState(0);
+  const [finalized, setFinalized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingBbref, setSyncingBbref] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const now = new Date();
   const year = now.getFullYear();
@@ -30,6 +33,7 @@ export default function ScoresPage() {
       const data = await res.json();
       setScoreRows(data.scoreRows ?? []);
       setXMatchCount(data.xMatchCount ?? 0);
+      setFinalized(data.finalized ?? false);
     } finally {
       setLoading(false);
     }
@@ -46,6 +50,28 @@ export default function ScoresPage() {
       await fetchScores();
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const syncBbref = async () => {
+    setSyncingBbref(true);
+    try {
+      const res = await fetch("/api/games/sync-bbref", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year, month }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Erreur import");
+        return;
+      }
+      await fetchScores();
+      if (data.synced != null) {
+        alert(`${data.synced} match(s) importé(s) depuis basketball-reference.`);
+      }
+    } finally {
+      setSyncingBbref(false);
     }
   };
 
@@ -76,21 +102,37 @@ export default function ScoresPage() {
         <h1 className="text-2xl font-semibold text-neutral-900">
           Scores {MONTHS[month]} {year}
         </h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={sync}
             disabled={syncing || loading}
             className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 disabled:opacity-50 active:scale-[0.98]"
           >
-            {syncing ? "Sync…" : "Rafraîchir"}
+            {syncing ? "Sync…" : "Rafraîchir (API)"}
           </button>
           <button
-            onClick={finalize}
-            disabled={finalizing || loading}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
+            onClick={syncBbref}
+            disabled={syncingBbref || loading}
+            className="rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-card transition hover:bg-neutral-50 disabled:opacity-50 active:scale-[0.98]"
           >
-            {finalizing ? "…" : "Clôturer le mois (6/3/1)"}
+            {syncingBbref ? "…" : "Importer (basketball-reference)"}
           </button>
+          {finalized ? (
+            <Link
+              href="/draft"
+              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition hover:opacity-90 active:scale-[0.98]"
+            >
+              Lancer une nouvelle draft
+            </Link>
+          ) : (
+            <button
+              onClick={finalize}
+              disabled={finalizing || loading}
+              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition hover:opacity-90 disabled:opacity-50 active:scale-[0.98]"
+            >
+              {finalizing ? "…" : "Clôturer le mois (6/3/1)"}
+            </button>
+          )}
         </div>
       </div>
 

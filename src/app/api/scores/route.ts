@@ -127,6 +127,8 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  const finalized = (monthlyScores ?? []).length > 0;
+
   return NextResponse.json({
     monthlyScores: monthlyScores ?? [],
     scoreRows,
@@ -134,5 +136,6 @@ export async function GET(request: NextRequest) {
     picks: pickList,
     players,
     draftId: draft.id,
+    finalized,
   });
 }

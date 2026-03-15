@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
 
     const indices = [0, 1, 2, 3];
     const draftOrder = shuffle(indices);
-    const draftMode = Math.random() < 0.5 ? "snake" : "regular";
+    const draftMode = (body.draft_mode === "snake" || body.draft_mode === "regular")
+      ? body.draft_mode
+      : Math.random() < 0.5 ? "snake" : "regular";
 
     const { data: draft, error } = await supabase
       .from("drafts")
