@@ -96,6 +96,7 @@ export default function MoisPage() {
   const [draftModeChoice, setDraftModeChoice] = useState<"regular" | "snake" | null>(null);
   const [orderChoice, setOrderChoice] = useState<number[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const year = monthConfig?.year ?? 0;
   const month = monthConfig?.month ?? 0;
@@ -229,6 +230,29 @@ export default function MoisPage() {
     }
   };
 
+  const seedMonth = async () => {
+    if (!slug) return;
+    setSeeding(true);
+    setError("");
+    try {
+      const res = await fetch("/api/draft/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Erreur");
+        return;
+      }
+      await loadAll();
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const refreshScores = async () => {
     if (!year || !month) return;
     setRefreshing(true);
@@ -322,6 +346,21 @@ export default function MoisPage() {
 
       {hasNoDraft && (
         <div className="space-y-4">
+          {["nov", "dec", "fev"].includes(slug) && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-800 mb-2">
+                Simulation : créer la draft de {fullName} avec les 28 picks pré-remplis.
+              </p>
+              <button
+                type="button"
+                onClick={seedMonth}
+                disabled={seeding}
+                className="rounded-2xl bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:opacity-50"
+              >
+                {seeding ? "Création…" : `Simuler la draft ${fullName}`}
+              </button>
+            </div>
+          )}
           {draftModeChoice == null ? (
             <div className="flex flex-wrap items-center gap-3">
               <button
